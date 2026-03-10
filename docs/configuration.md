@@ -10,15 +10,17 @@ If you set `OPENROUTER_API_KEY` and use defaults, the gateway is ready to run.
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-...
-agent-audio-gateway analyze /path/to/file.wav --task summarize
+uv run agent-audio-gateway analyze /path/to/file.wav --task summarize
 ```
 
 Use a config file only when you want custom behavior:
 
 ```bash
 cp config.default.yaml my-config.yaml
-agent-audio-gateway --config my-config.yaml analyze /path/to/file.wav --task summarize
+uv run agent-audio-gateway --config my-config.yaml analyze /path/to/file.wav --task summarize
 ```
+
+If your virtual environment is activated, you can run `agent-audio-gateway ...` directly.
 
 You can also point to a config path via environment:
 

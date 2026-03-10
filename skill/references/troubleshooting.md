@@ -12,7 +12,18 @@ Install the package into your active environment:
 uv pip install -e /path/to/agent-audio-gateway
 ```
 
-Or activate the virtual environment where it is already installed.
+Then either run with `uv run`:
+
+```bash
+uv run agent-audio-gateway version
+```
+
+Or activate the virtual environment where it is already installed:
+
+```bash
+source .venv/bin/activate
+agent-audio-gateway version
+```
 
 ---
 

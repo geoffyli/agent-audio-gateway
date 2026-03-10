@@ -18,7 +18,7 @@ A local audio capability runtime. Use this skill when you need to understand, an
 
 - Shell execution capability is available
 - The target audio file path is accessible and readable
-- The `agent-audio-gateway` CLI is installed (`agent-audio-gateway --help` should succeed)
+- The `agent-audio-gateway` CLI is installed (`uv run agent-audio-gateway --help` should succeed)
 - The `OPENROUTER_API_KEY` environment variable is set (or `model.api_key` is configured)
 
 ---

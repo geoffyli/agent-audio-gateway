@@ -1,5 +1,19 @@
 # CLI Reference
 
+## Invocation modes
+
+Examples in this document use `agent-audio-gateway ...` for readability.
+
+- If the executable is already on your shell `PATH`, run commands directly.
+- If you installed with `uv pip install -e .` and did not activate `.venv`, prefix commands with `uv run`.
+
+Equivalent examples:
+
+```bash
+agent-audio-gateway health --pretty
+uv run agent-audio-gateway health --pretty
+```
+
 ## Design principles
 
 - Predictable, strict argument handling

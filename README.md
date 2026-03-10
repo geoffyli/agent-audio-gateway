@@ -20,6 +20,9 @@ An agent-oriented audio capability runtime. `agent-audio-gateway` gives shell-ca
 
 ## Quick start
 
+For a copy-paste 5-minute setup and first successful analysis, see
+[`docs/quickstart.md`](docs/quickstart.md).
+
 **Requirements:** Python 3.10+, [uv](https://github.com/astral-sh/uv), an [OpenRouter API key](https://openrouter.ai/keys)
 
 ```bash
@@ -29,20 +32,32 @@ uv venv && uv pip install -e .
 # Set your API key
 export OPENROUTER_API_KEY=sk-or-...
 
+# Verify installation
+uv run agent-audio-gateway version
+uv run agent-audio-gateway health --pretty
+
 # Inspect a file
-agent-audio-gateway inspect /path/to/file.wav
+uv run agent-audio-gateway inspect /path/to/file.wav
 
 # Summarize a file
-agent-audio-gateway analyze /path/to/file.wav --task summarize
+uv run agent-audio-gateway analyze /path/to/file.wav --task summarize
 
 # Ask a question
-agent-audio-gateway ask /path/to/file.wav --question "What topics are discussed?"
+uv run agent-audio-gateway ask /path/to/file.wav --question "What topics are discussed?"
 
 # Check status
-agent-audio-gateway health --pretty
+uv run agent-audio-gateway health --pretty
 
 # Start the local server
-agent-audio-gateway serve
+uv run agent-audio-gateway serve
+```
+
+By default, these examples use `uv run ...` so they work even when `.venv/bin` is not on your shell `PATH`.
+If you prefer direct commands (`agent-audio-gateway ...`), activate the environment first:
+
+```bash
+source .venv/bin/activate
+agent-audio-gateway version
 ```
 
 ---
@@ -79,7 +94,7 @@ All commands output JSON to stdout. Logs and diagnostics go to stderr.
 Copy `config.default.yaml` and pass it with `--config`:
 
 ```bash
-agent-audio-gateway --config my-config.yaml analyze /path/to/file.wav --task summarize
+uv run agent-audio-gateway --config my-config.yaml analyze /path/to/file.wav --task summarize
 ```
 
 Minimal config most users need:
@@ -114,9 +129,9 @@ If neither is set, analysis operations (`analyze`, `ask`, and API equivalents) f
 ## Local server
 
 ```bash
-agent-audio-gateway serve               # http://127.0.0.1:8000
-agent-audio-gateway serve --port 8080   # custom port
-agent-audio-gateway serve --host 0.0.0.0 --allow-remote  # intentionally expose (unsafe)
+uv run agent-audio-gateway serve               # http://127.0.0.1:8000
+uv run agent-audio-gateway serve --port 8080   # custom port
+uv run agent-audio-gateway serve --host 0.0.0.0 --allow-remote  # intentionally expose (unsafe)
 ```
 
 For interactive agent workflows, prefer `serve` mode to avoid per-command CLI cold starts.
@@ -125,6 +140,11 @@ Endpoints: `GET /health`, `GET /version`, `POST /inspect`, `POST /analyze`, `POS
 
 The server binds to `127.0.0.1` by default. Binding to non-loopback hosts requires
 `--allow-remote` because the server has no built-in authentication.
+
+### Quick troubleshooting
+
+- `zsh: command not found: agent-audio-gateway`: use `uv run agent-audio-gateway ...` or activate `.venv`.
+- `MISSING_API_KEY`: set `OPENROUTER_API_KEY` or `model.api_key` in config.
 
 ---
 
@@ -138,6 +158,7 @@ See [`skill/SKILL.md`](skill/SKILL.md) for ready-to-use instructions that teach 
 
 | Document | Description |
 |----------|-------------|
+| [docs/quickstart.md](docs/quickstart.md) | Fast setup, verification, and first successful run |
 | [docs/architecture.md](docs/architecture.md) | System design, layers, and data flow |
 | [docs/cli.md](docs/cli.md) | Full CLI reference |
 | [docs/api.md](docs/api.md) | Local server API reference |
