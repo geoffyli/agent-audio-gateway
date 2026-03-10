@@ -1,0 +1,52 @@
+# History / editor
+.history/
+.DS_Store
+
+# Claude Code local settings (personal IDE config)
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Build / distribution
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# uv
+uv.lock
+
+# User config (may contain API keys)
+config.yaml
+config.local.yaml
+
+# Temporary / test audio files
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+tests/fixtures/*.wav
+tests/fixtures/*.mp3
+
+# Logs
+*.log

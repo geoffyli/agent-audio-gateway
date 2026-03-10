@@ -1,0 +1,28 @@
+[project]
+name = "agent-audio-gateway"
+version = "0.1.0"
+description = "A local, agent-oriented audio capability runtime"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+    "httpx>=0.25",
+    "librosa>=0.10",
+    "soundfile>=0.12",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+agent-audio-gateway = "agent_audio_gateway.cli.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_audio_gateway"]
+
+[dependency-groups]
+dev = ["pytest>=7.0"]
