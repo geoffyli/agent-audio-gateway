@@ -54,20 +54,8 @@ class GatewayEngine:
         self._inspector = AudioInspector()
         self._preprocessor = AudioPreprocessor()
         self._segmenter = AudioSegmenter()
-        self._adapter = OpenRouterAdapter(
-            model_id=config.model.id,
-            api_key=config.model.api_key,
-            base_url=config.model.base_url,
-            max_tokens=config.model.max_tokens,
-            connect_timeout_seconds=config.model.connect_timeout_seconds,
-            read_timeout_seconds=config.model.read_timeout_seconds,
-            write_timeout_seconds=config.model.write_timeout_seconds,
-            pool_timeout_seconds=config.model.pool_timeout_seconds,
-            max_retries=config.model.max_retries,
-            retry_backoff_seconds=config.model.retry_backoff_seconds,
-            target_sample_rate_hz=config.analysis.target_sample_rate_hz,
-        )
-        self._aggregator = ChunkAggregator(adapter=self._adapter)
+        self._adapter: OpenRouterAdapter | None = None
+        self._aggregator: ChunkAggregator | None = None
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -78,6 +66,7 @@ class GatewayEngine:
     def analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
         total_start = time.perf_counter()
         request_id = f"req_{uuid.uuid4().hex[:8]}"
+        adapter = self._ensure_adapter()
 
         # Resolve optional prompt file
         prompt_override = request.instruction
@@ -118,7 +107,7 @@ class GatewayEngine:
             max_workers = min(self.config.analysis.max_parallel_chunks, len(chunks))
             if max_workers <= 1:
                 chunk_results = [
-                    self._adapter.analyze(chunk.audio, sr, prompt) for chunk in chunks
+                    adapter.analyze(chunk.audio, sr, prompt) for chunk in chunks
                 ]
             else:
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -138,7 +127,7 @@ class GatewayEngine:
             inference_elapsed = (time.perf_counter() - inference_start) * 1000
 
             aggregate_start = time.perf_counter()
-            summary = self._aggregator.merge(chunk_results, task_key)
+            summary = self._ensure_aggregator().merge(chunk_results, task_key)
             aggregate_elapsed = (time.perf_counter() - aggregate_start) * 1000
             chunk_count = len(chunks)
         else:
@@ -146,7 +135,7 @@ class GatewayEngine:
             logger.info("Analyzing single segment for task '%s'", task_key)
 
             inference_start = time.perf_counter()
-            summary = self._adapter.analyze(audio, sr, prompt)
+            summary = adapter.analyze(audio, sr, prompt)
             inference_elapsed = (time.perf_counter() - inference_start) * 1000
 
             aggregate_elapsed = 0.0
@@ -165,7 +154,7 @@ class GatewayEngine:
             ),
             result=AnalysisResult(task=task_key, summary=summary),
             meta={
-                "model": self._adapter.model_name,
+                "model": adapter.model_name,
                 "schema": request.output_schema,
                 "backend": self.config.model.backend,
                 "timing_ms": {
@@ -194,10 +183,22 @@ class GatewayEngine:
     def health(self) -> HealthResponse:
         from agent_audio_gateway import __version__
 
+        model_name = (
+            self._adapter.model_name
+            if self._adapter is not None
+            else self.config.model.id
+        )
         return HealthResponse(
-            model=self._adapter.model_name,
+            model=model_name,
             version=__version__,
         )
+
+    def close(self) -> None:
+        if self._adapter is None:
+            return
+        self._adapter.close()
+        self._adapter = None
+        self._aggregator = None
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -209,7 +210,43 @@ class GatewayEngine:
                 f"Prompt file not found: {prompt_file}",
                 code="PROMPT_FILE_NOT_FOUND",
             )
-        return path.read_text().strip()
+        if not path.is_file():
+            raise InputError(
+                f"Prompt path is not a file: {prompt_file}",
+                code="NOT_A_FILE",
+            )
+        try:
+            return path.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError) as e:
+            raise InputError(
+                f"Failed to read prompt file: {e}",
+                code="PROMPT_FILE_READ_ERROR",
+            ) from e
 
     def _analyze_chunk(self, chunk: AudioChunk, sr: int, prompt: str) -> str:
-        return self._adapter.analyze(chunk.audio, sr, prompt)
+        return self._ensure_adapter().analyze(chunk.audio, sr, prompt)
+
+    def _ensure_adapter(self) -> OpenRouterAdapter:
+        if self._adapter is not None:
+            return self._adapter
+
+        config = self.config
+        self._adapter = OpenRouterAdapter(
+            model_id=config.model.id,
+            api_key=config.model.api_key,
+            base_url=config.model.base_url,
+            max_tokens=config.model.max_tokens,
+            connect_timeout_seconds=config.model.connect_timeout_seconds,
+            read_timeout_seconds=config.model.read_timeout_seconds,
+            write_timeout_seconds=config.model.write_timeout_seconds,
+            pool_timeout_seconds=config.model.pool_timeout_seconds,
+            max_retries=config.model.max_retries,
+            retry_backoff_seconds=config.model.retry_backoff_seconds,
+            target_sample_rate_hz=config.analysis.target_sample_rate_hz,
+        )
+        return self._adapter
+
+    def _ensure_aggregator(self) -> ChunkAggregator:
+        if self._aggregator is None:
+            self._aggregator = ChunkAggregator(adapter=self._ensure_adapter())
+        return self._aggregator

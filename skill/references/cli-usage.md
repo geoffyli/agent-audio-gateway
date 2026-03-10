@@ -101,12 +101,14 @@ Start the local HTTP server (default: `http://127.0.0.1:8000`).
 ```bash
 agent-audio-gateway serve
 agent-audio-gateway serve --host 127.0.0.1 --port 8080
+agent-audio-gateway serve --host 0.0.0.0 --allow-remote  # intentionally expose (unsafe)
 agent-audio-gateway serve --reload   # development mode
 ```
 
 **Options:**
 - `--host TEXT` — bind host (default: `127.0.0.1`)
 - `--port INT` — bind port (default: `8000`)
+- `--allow-remote` — required for non-loopback host binding
 - `--reload` — enable auto-reload for development
 
 ---

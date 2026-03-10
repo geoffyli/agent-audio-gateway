@@ -40,6 +40,14 @@ def _get_engine() -> GatewayEngine:
     return _engine
 
 
+def _close_engine() -> None:
+    global _engine
+    if _engine is None:
+        return
+    _engine.close()
+    _engine = None
+
+
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
 
@@ -52,6 +60,7 @@ async def lifespan(app: FastAPI):
         logger.error("Startup failed: [%s] %s", e.code, e.message)
         raise
     yield
+    _close_engine()
     logger.info("agent-audio-gateway server shutting down")
 
 
@@ -74,9 +83,16 @@ _STATUS_MAP: dict[type, int] = {
 }
 
 
+def _gateway_status_code(exc: GatewayError) -> int:
+    for error_type, status_code in _STATUS_MAP.items():
+        if isinstance(exc, error_type):
+            return status_code
+    return 500
+
+
 @app.exception_handler(GatewayError)
 async def gateway_error_handler(request: Request, exc: GatewayError) -> JSONResponse:
-    status_code = _STATUS_MAP.get(type(exc), 500)
+    status_code = _gateway_status_code(exc)
     return JSONResponse(
         status_code=status_code,
         content={
@@ -90,11 +106,31 @@ async def gateway_error_handler(request: Request, exc: GatewayError) -> JSONResp
     )
 
 
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error(
+        "Unhandled server error while processing %s",
+        request.url.path,
+        exc_info=exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected internal error occurred.",
+                "retryable": False,
+            },
+        },
+    )
+
+
 # ── Thread-pool helper ────────────────────────────────────────────────────────
 
 
 async def _run_sync(fn, *args: Any) -> Any:
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, partial(fn, *args))
 
 

@@ -251,6 +251,9 @@ class OpenRouterAdapter(BaseAudioAdapter):
         )
         time.sleep(delay)
 
+    def close(self) -> None:
+        self._client.close()
+
 
 # ── Error surfacing helper ────────────────────────────────────────────────────
 

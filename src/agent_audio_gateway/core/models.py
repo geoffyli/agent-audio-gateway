@@ -70,7 +70,7 @@ class Observation(BaseModel):
 class AnalysisResult(BaseModel):
     task: str
     summary: str
-    observations: list[Observation] = []
+    observations: list[Observation] = Field(default_factory=list)
 
 
 class InputMeta(BaseModel):
@@ -94,7 +94,7 @@ class AnalyzeResponse(BaseModel):
     status: str = "ok"
     input: InputMeta
     result: AnalysisResult
-    meta: dict[str, Any] = {}
+    meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):

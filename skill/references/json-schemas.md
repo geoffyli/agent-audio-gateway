@@ -142,6 +142,7 @@ Returned when any command fails. On the CLI, this goes to stdout. On the server,
 | `API_ERROR_*` | Provider returned a non-200 API error code |
 | `MISSING_API_KEY` | API key missing in config and environment |
 | `PROMPT_FILE_NOT_FOUND` | The file given to `--prompt-file` does not exist |
+| `PROMPT_FILE_READ_ERROR` | The file given to `--prompt-file` could not be read as UTF-8 text |
 | `CONFIG_NOT_FOUND` | The config file specified via `--config` does not exist |
 | `CONFIG_PARSE_ERROR` | The config file contains invalid YAML |
 | `CONFIG_LOAD_ERROR` | The config file could not be loaded |

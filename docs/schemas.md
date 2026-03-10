@@ -128,6 +128,7 @@ Returned on failure. On the CLI, written to stdout. On the server, returned with
 | `API_ERROR_*` | 5 | Provider returned a non-200 API error code |
 | `MISSING_API_KEY` | 6 | API key missing in config and environment |
 | `PROMPT_FILE_NOT_FOUND` | 3 | The `--prompt-file` path does not exist |
+| `PROMPT_FILE_READ_ERROR` | 3 | The `--prompt-file` path could not be read as UTF-8 text |
 | `CONFIG_NOT_FOUND` | 6 | The `--config` file does not exist |
 | `CONFIG_PARSE_ERROR` | 6 | The config file contains invalid YAML |
 | `CONFIG_LOAD_ERROR` | 6 | The config file could not be loaded |

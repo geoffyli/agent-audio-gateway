@@ -19,3 +19,7 @@ class BaseAudioAdapter(ABC):
     def model_name(self) -> str:
         """Human-readable model identifier."""
         ...
+
+    def close(self) -> None:
+        """Release adapter resources."""
+        return

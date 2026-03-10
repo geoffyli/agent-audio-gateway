@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import logging
 import sys
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import click
 
@@ -49,6 +50,59 @@ def _emit_error(e: GatewayError, pretty: bool) -> None:
     _emit(payload, pretty)
 
 
+def _emit_internal_error(pretty: bool) -> None:
+    logger = logging.getLogger(__name__)
+    logger.exception("Unhandled CLI error")
+    error = GatewayError(
+        "An unexpected internal error occurred.",
+        code="INTERNAL_ERROR",
+    )
+    _emit_error(error, pretty)
+
+
+def _run_json_command(pretty: bool, action: Callable[[], Any]) -> None:
+    try:
+        result = action()
+        _emit_model(result, pretty)
+    except GatewayError as e:
+        _emit_error(e, pretty)
+        sys.exit(e.exit_code)
+    except Exception:
+        _emit_internal_error(pretty)
+        sys.exit(6)
+
+
+def _resolve_analysis_options(
+    engine: GatewayEngine,
+    *,
+    no_segment: bool,
+    max_chunk_seconds: Optional[float],
+    overlap_seconds: Optional[float],
+) -> AnalysisOptions:
+    return AnalysisOptions(
+        segment=not no_segment,
+        max_chunk_seconds=(
+            max_chunk_seconds
+            if max_chunk_seconds is not None
+            else engine.config.analysis.default_max_chunk_seconds
+        ),
+        overlap_seconds=(
+            overlap_seconds
+            if overlap_seconds is not None
+            else engine.config.analysis.default_overlap_seconds
+        ),
+    )
+
+
+def _is_loopback_host(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def _make_engine(config_path: Optional[str]) -> GatewayEngine:
     config = GatewayConfig.load(config_path)
     _setup_logging(config.logging.level)
@@ -83,13 +137,10 @@ def cli(ctx: click.Context, config_path: Optional[str]) -> None:
 @click.pass_context
 def inspect(ctx: click.Context, file_path: str, pretty: bool) -> None:
     """Inspect an audio file and return its metadata as JSON."""
-    try:
-        engine = _make_engine(ctx.obj.get("config_path"))
-        result = engine.inspect(file_path)
-        _emit_model(result, pretty)
-    except GatewayError as e:
-        _emit_error(e, pretty)
-        sys.exit(e.exit_code)
+    _run_json_command(
+        pretty,
+        lambda: _make_engine(ctx.obj.get("config_path")).inspect(file_path),
+    )
 
 
 # ── analyze ───────────────────────────────────────────────────────────────────
@@ -107,9 +158,15 @@ def inspect(ctx: click.Context, file_path: str, pretty: bool) -> None:
     ),
     help="Analysis task to perform.",
 )
-@click.option("--instruction", default=None, help="Custom instruction / prompt override.")
-@click.option("--prompt-file", default=None, metavar="PATH", help="Path to a prompt text file.")
-@click.option("--schema", default=None, help="Output schema identifier (informational).")
+@click.option(
+    "--instruction", default=None, help="Custom instruction / prompt override."
+)
+@click.option(
+    "--prompt-file", default=None, metavar="PATH", help="Path to a prompt text file."
+)
+@click.option(
+    "--schema", default=None, help="Output schema identifier (informational)."
+)
 @click.option(
     "--max-chunk-seconds",
     default=None,
@@ -145,12 +202,14 @@ def analyze(
     pretty: bool,
 ) -> None:
     """Analyze an audio file and return structured JSON."""
-    try:
+
+    def _action():
         engine = _make_engine(ctx.obj.get("config_path"))
-        options = AnalysisOptions(
-            segment=not no_segment,
-            max_chunk_seconds=max_chunk_seconds or engine.config.analysis.default_max_chunk_seconds,
-            overlap_seconds=overlap_seconds or engine.config.analysis.default_overlap_seconds,
+        options = _resolve_analysis_options(
+            engine,
+            no_segment=no_segment,
+            max_chunk_seconds=max_chunk_seconds,
+            overlap_seconds=overlap_seconds,
         )
         request = AnalyzeRequest(
             file_path=file_path,
@@ -160,11 +219,9 @@ def analyze(
             output_schema=schema,
             options=options,
         )
-        result = engine.analyze(request)
-        _emit_model(result, pretty)
-    except GatewayError as e:
-        _emit_error(e, pretty)
-        sys.exit(e.exit_code)
+        return engine.analyze(request)
+
+    _run_json_command(pretty, _action)
 
 
 # ── ask ───────────────────────────────────────────────────────────────────────
@@ -209,19 +266,19 @@ def ask(
     pretty: bool,
 ) -> None:
     """Ask a question about an audio file and return a JSON answer."""
-    try:
+
+    def _action():
         engine = _make_engine(ctx.obj.get("config_path"))
-        options = AnalysisOptions(
-            segment=not no_segment,
-            max_chunk_seconds=max_chunk_seconds or engine.config.analysis.default_max_chunk_seconds,
-            overlap_seconds=overlap_seconds or engine.config.analysis.default_overlap_seconds,
+        options = _resolve_analysis_options(
+            engine,
+            no_segment=no_segment,
+            max_chunk_seconds=max_chunk_seconds,
+            overlap_seconds=overlap_seconds,
         )
         request = AskRequest(file_path=file_path, question=question, options=options)
-        result = engine.ask(request)
-        _emit_model(result, pretty)
-    except GatewayError as e:
-        _emit_error(e, pretty)
-        sys.exit(e.exit_code)
+        return engine.ask(request)
+
+    _run_json_command(pretty, _action)
 
 
 # ── health ────────────────────────────────────────────────────────────────────
@@ -232,13 +289,10 @@ def ask(
 @click.pass_context
 def health(ctx: click.Context, pretty: bool) -> None:
     """Return health and model information as JSON."""
-    try:
-        engine = _make_engine(ctx.obj.get("config_path"))
-        result = engine.health()
-        _emit_model(result, pretty)
-    except GatewayError as e:
-        _emit_error(e, pretty)
-        sys.exit(e.exit_code)
+    _run_json_command(
+        pretty,
+        lambda: _make_engine(ctx.obj.get("config_path")).health(),
+    )
 
 
 # ── version ───────────────────────────────────────────────────────────────────
@@ -256,16 +310,42 @@ def version(pretty: bool) -> None:
 
 @cli.command()
 @click.option("--host", default="127.0.0.1", show_default=True, help="Bind host.")
-@click.option("--port", default=8000, show_default=True, type=int, help="Bind port.")
-@click.option("--reload", is_flag=True, default=False, help="Enable auto-reload (development).")
+@click.option(
+    "--port",
+    default=8000,
+    show_default=True,
+    type=click.IntRange(1, 65535),
+    help="Bind port.",
+)
+@click.option(
+    "--allow-remote",
+    is_flag=True,
+    default=False,
+    help="Allow binding to non-loopback hosts (unsafe on untrusted networks).",
+)
+@click.option(
+    "--reload", is_flag=True, default=False, help="Enable auto-reload (development)."
+)
 @click.pass_context
-def serve(ctx: click.Context, host: str, port: int, reload: bool) -> None:
+def serve(
+    ctx: click.Context,
+    host: str,
+    port: int,
+    allow_remote: bool,
+    reload: bool,
+) -> None:
     """Start the local HTTP server."""
     import os
 
+    if not _is_loopback_host(host) and not allow_remote:
+        raise click.UsageError(
+            "Refusing to bind to non-loopback host without --allow-remote. "
+            "This server has no authentication and is intended for local use."
+        )
+
     config_path = ctx.obj.get("config_path")
     if config_path:
-        os.environ.setdefault("AGENT_AUDIO_GATEWAY_CONFIG", config_path)
+        os.environ["AGENT_AUDIO_GATEWAY_CONFIG"] = config_path
 
     import uvicorn
 

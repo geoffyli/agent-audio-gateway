@@ -133,7 +133,8 @@ class BaseAudioAdapter(ABC):
 
 ## Security and privacy
 
-- HTTP server binds to `127.0.0.1` by default.
+- HTTP server binds to `127.0.0.1` by default; non-loopback binding requires
+  `--allow-remote`.
 - Input file paths are validated before processing.
 - Audio data is sent to the configured model provider (OpenRouter) for inference.
 - API key can come from config or `OPENROUTER_API_KEY` environment variable.

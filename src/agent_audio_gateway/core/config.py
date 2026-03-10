@@ -54,11 +54,11 @@ class CacheConfig(BaseModel):
 
 
 class GatewayConfig(BaseModel):
-    model: ModelConfig = ModelConfig()
-    analysis: AnalysisConfig = AnalysisConfig()
-    output: OutputConfig = OutputConfig()
-    logging: LoggingConfig = LoggingConfig()
-    cache: CacheConfig = CacheConfig()
+    model: ModelConfig = Field(default_factory=ModelConfig)
+    analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)
+    output: OutputConfig = Field(default_factory=OutputConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
 
     @classmethod
     def load(cls, path: Optional[str] = None) -> "GatewayConfig":

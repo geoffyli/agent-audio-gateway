@@ -139,7 +139,7 @@ agent-audio-gateway version
 Start the local HTTP server.
 
 ```bash
-agent-audio-gateway serve [--host HOST] [--port PORT] [--reload]
+agent-audio-gateway serve [--host HOST] [--port PORT] [--allow-remote] [--reload]
 ```
 
 **Options:**
@@ -148,6 +148,7 @@ agent-audio-gateway serve [--host HOST] [--port PORT] [--reload]
 |------|---------|-------------|
 | `--host TEXT` | `127.0.0.1` | Bind host |
 | `--port INT` | `8000` | Bind port |
+| `--allow-remote` | — | Required to bind non-loopback hosts; use only on trusted networks |
 | `--reload` | — | Enable auto-reload (development only) |
 
 ---

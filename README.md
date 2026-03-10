@@ -106,7 +106,8 @@ The OpenRouter API key is resolved in this order:
 1. `model.api_key` in the config file
 2. `OPENROUTER_API_KEY` environment variable
 
-If neither is set, the gateway exits with an error (`MISSING_API_KEY`, exit code 6).
+If neither is set, analysis operations (`analyze`, `ask`, and API equivalents) fail with
+`MISSING_API_KEY` (exit code 6 on CLI).
 
 ---
 
@@ -115,13 +116,15 @@ If neither is set, the gateway exits with an error (`MISSING_API_KEY`, exit code
 ```bash
 agent-audio-gateway serve               # http://127.0.0.1:8000
 agent-audio-gateway serve --port 8080   # custom port
+agent-audio-gateway serve --host 0.0.0.0 --allow-remote  # intentionally expose (unsafe)
 ```
 
 For interactive agent workflows, prefer `serve` mode to avoid per-command CLI cold starts.
 
 Endpoints: `GET /health`, `GET /version`, `POST /inspect`, `POST /analyze`, `POST /ask`
 
-The server binds to `127.0.0.1` only.
+The server binds to `127.0.0.1` by default. Binding to non-loopback hosts requires
+`--allow-remote` because the server has no built-in authentication.
 
 ---
 

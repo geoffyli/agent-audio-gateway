@@ -8,9 +8,11 @@ The local server exposes the same functionality as the CLI through HTTP endpoint
 agent-audio-gateway serve                    # http://127.0.0.1:8000
 agent-audio-gateway serve --port 8080        # custom port
 agent-audio-gateway --config cfg.yaml serve  # with custom config
+agent-audio-gateway serve --host 0.0.0.0 --allow-remote  # intentionally expose (unsafe)
 ```
 
-The server binds to `127.0.0.1` only.
+The server binds to `127.0.0.1` by default. Binding to non-loopback hosts requires
+`--allow-remote` because the server has no built-in authentication.
 
 ---
 
