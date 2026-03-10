@@ -27,7 +27,7 @@ A local audio capability runtime. Use this skill when you need to understand, an
 
 1. **Verify the file** — if the file path or format is uncertain, run `inspect` first.
 2. **Choose the right command** — use `analyze` for open-ended tasks, `ask` for specific questions.
-3. **Always use `--json`** (the default) to get machine-readable output.
+3. **Use JSON output** (the CLI default) to keep responses machine-readable.
 4. **Treat CLI output as authoritative** — do not invent analysis results.
 5. **Preserve timestamps and uncertainty** — surface them faithfully when they appear in the output.
 6. **Do not claim to have directly listened to the audio** unless you used this gateway.

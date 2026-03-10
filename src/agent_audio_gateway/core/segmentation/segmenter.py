@@ -37,6 +37,18 @@ class AudioSegmenter:
         max_chunk_seconds: float,
         overlap_seconds: float,
     ) -> list[AudioChunk]:
+        if max_chunk_seconds <= 0:
+            raise SegmentationError(
+                "max_chunk_seconds must be greater than 0",
+                code="INVALID_CHUNK_PARAMS",
+            )
+
+        if overlap_seconds < 0:
+            raise SegmentationError(
+                "overlap_seconds must be greater than or equal to 0",
+                code="INVALID_CHUNK_PARAMS",
+            )
+
         if overlap_seconds >= max_chunk_seconds:
             raise SegmentationError(
                 "overlap_seconds must be less than max_chunk_seconds",

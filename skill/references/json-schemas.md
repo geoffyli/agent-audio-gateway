@@ -51,9 +51,19 @@ Returned by `analyze`, `ask` (CLI) and `POST /analyze`, `POST /ask` (server).
     ]
   },
   "meta": {
-    "model": "Qwen/Qwen2-Audio-7B-Instruct",
+    "model": "google/gemini-3.1-flash-lite-preview",
     "schema": null,
-    "backend": "qwen2-audio"
+    "backend": "openrouter",
+    "parallel_chunks": 2,
+    "target_sample_rate_hz": 16000,
+    "timing_ms": {
+      "inspect": 2.4,
+      "preprocess": 34.7,
+      "segment": 0.9,
+      "inference": 842.1,
+      "aggregate": 104.8,
+      "total": 985.6
+    }
   }
 }
 ```
@@ -64,6 +74,7 @@ Returned by `analyze`, `ask` (CLI) and `POST /analyze`, `POST /ask` (server).
 - `result.observations` — may be empty `[]` depending on task and model output
 - `result.observations[].timestamp` — optional; present when the model infers timing
 - `meta.schema` — the `--schema` value passed by the caller, or `null`
+- `meta.timing_ms` — stage timings in milliseconds for troubleshooting and tuning
 
 ---
 
@@ -74,7 +85,7 @@ Returned by `health` (CLI) and `GET /health` (server).
 ```json
 {
   "status": "ok",
-  "model": "Qwen/Qwen2-Audio-7B-Instruct",
+  "model": "google/gemini-3.1-flash-lite-preview",
   "version": "0.1.0"
 }
 ```
@@ -95,7 +106,7 @@ Returned by `version` (CLI) and `GET /version` (server).
 
 ## ErrorResponse
 
-Returned when any command fails. On the CLI, this goes to stdout when `--json` is active. On the server, it is returned with an appropriate HTTP status code.
+Returned when any command fails. On the CLI, this goes to stdout. On the server, it is returned with an appropriate HTTP status code.
 
 ```json
 {
@@ -117,11 +128,19 @@ Returned when any command fails. On the CLI, this goes to stdout when `--json` i
 | `UNSUPPORTED_FORMAT` | The file extension is not supported |
 | `METADATA_READ_ERROR` | Could not extract audio metadata from the file |
 | `AUDIO_LOAD_ERROR` | Failed to load or decode the audio |
-| `INVALID_CHUNK_PARAMS` | overlap_seconds >= max_chunk_seconds |
-| `MODEL_LOAD_ERROR` | The model could not be loaded (check setup) |
-| `MISSING_DEPENDENCY` | A required Python package is not installed |
-| `INFERENCE_ERROR` | Model inference failed for a chunk |
-| `SYNTHESIS_ERROR` | Text-only synthesis for aggregation failed |
+| `INVALID_CHUNK_PARAMS` | Invalid chunk options (for example overlap >= chunk size) |
+| `AUDIO_ENCODE_ERROR` | Failed to encode upload audio payload |
+| `INFERENCE_ERROR` | Audio inference failed |
+| `SYNTHESIS_ERROR` | Text synthesis call failed |
+| `SYNTHESIS_FAILED` | Aggregation merge step failed |
+| `EMPTY_CHUNKS` | Aggregation received no chunk results |
+| `API_TIMEOUT` | Provider request timed out |
+| `API_NETWORK_ERROR` | Provider network request failed |
+| `API_HTTP_ERROR` | Provider request failed before a response body was parsed |
+| `API_RESPONSE_PARSE_ERROR` | Provider response shape was invalid |
+| `API_UNEXPECTED_CONTENT_TYPE` | Provider content type did not match expected text payload |
+| `API_ERROR_*` | Provider returned a non-200 API error code |
+| `MISSING_API_KEY` | API key missing in config and environment |
 | `PROMPT_FILE_NOT_FOUND` | The file given to `--prompt-file` does not exist |
 | `CONFIG_NOT_FOUND` | The config file specified via `--config` does not exist |
 | `CONFIG_PARSE_ERROR` | The config file contains invalid YAML |

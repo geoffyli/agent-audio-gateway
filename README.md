@@ -82,21 +82,20 @@ Copy `config.default.yaml` and pass it with `--config`:
 agent-audio-gateway --config my-config.yaml analyze /path/to/file.wav --task summarize
 ```
 
-Key config options:
+Minimal config most users need:
 
 ```yaml
 model:
   backend: openrouter
-  id: google/gemini-2.0-flash-001   # any OpenRouter model with audio support
-  api_key: ""                        # or set OPENROUTER_API_KEY env var
-  base_url: https://openrouter.ai/api/v1
-  max_tokens: 1024
+  id: google/gemini-3.1-flash-lite-preview   # any OpenRouter model with audio support
 
 analysis:
   segment_threshold_seconds: 30.0   # files longer than this are chunked
   default_max_chunk_seconds: 25.0
   default_overlap_seconds: 3.0
 ```
+
+Advanced tuning knobs (timeouts, retries, upload sample rate, chunk parallelism) are documented in [`docs/configuration.md`](docs/configuration.md).
 
 The config path can also be set via the `AGENT_AUDIO_GATEWAY_CONFIG` environment variable.
 
@@ -117,6 +116,8 @@ If neither is set, the gateway exits with an error (`MISSING_API_KEY`, exit code
 agent-audio-gateway serve               # http://127.0.0.1:8000
 agent-audio-gateway serve --port 8080   # custom port
 ```
+
+For interactive agent workflows, prefer `serve` mode to avoid per-command CLI cold starts.
 
 Endpoints: `GET /health`, `GET /version`, `POST /inspect`, `POST /analyze`, `POST /ask`
 

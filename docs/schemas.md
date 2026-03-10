@@ -49,9 +49,19 @@ Returned by `analyze`, `ask`, `POST /analyze`, and `POST /ask`.
     ]
   },
   "meta": {
-    "model": "Qwen/Qwen2-Audio-7B-Instruct",
+    "model": "google/gemini-3.1-flash-lite-preview",
     "schema": null,
-    "backend": "qwen2-audio"
+    "backend": "openrouter",
+    "parallel_chunks": 2,
+    "target_sample_rate_hz": 16000,
+    "timing_ms": {
+      "inspect": 2.4,
+      "preprocess": 34.7,
+      "segment": 0.9,
+      "inference": 842.1,
+      "aggregate": 104.8,
+      "total": 985.6
+    }
   }
 }
 ```
@@ -62,6 +72,7 @@ Returned by `analyze`, `ask`, `POST /analyze`, and `POST /ask`.
 - `result.observations` — may be empty; depends on task and model output
 - `result.observations[].timestamp` — optional; present when the model infers timing
 - `meta.schema` — the `--schema` value passed by the caller, or `null`
+- `meta.timing_ms` — stage timings in milliseconds for troubleshooting and tuning
 
 ---
 
@@ -70,7 +81,7 @@ Returned by `analyze`, `ask`, `POST /analyze`, and `POST /ask`.
 ```json
 {
   "status": "ok",
-  "model": "Qwen/Qwen2-Audio-7B-Instruct",
+  "model": "google/gemini-3.1-flash-lite-preview",
   "version": "0.1.0"
 }
 ```
@@ -103,11 +114,19 @@ Returned on failure. On the CLI, written to stdout. On the server, returned with
 | `UNSUPPORTED_FORMAT` | 3 | The file extension is not supported |
 | `METADATA_READ_ERROR` | 3 | Could not extract audio metadata |
 | `AUDIO_LOAD_ERROR` | 4 | Failed to load or decode the audio |
-| `INVALID_CHUNK_PARAMS` | 4 | `overlap_seconds >= max_chunk_seconds` |
-| `MODEL_LOAD_ERROR` | 5 | The model could not be loaded |
-| `MISSING_DEPENDENCY` | 5 | A required Python package is not installed |
-| `INFERENCE_ERROR` | 5 | Model inference failed |
-| `SYNTHESIS_ERROR` | 5 | Text synthesis for aggregation failed |
+| `INVALID_CHUNK_PARAMS` | 4 | Invalid chunk options (for example overlap >= chunk size) |
+| `AUDIO_ENCODE_ERROR` | 5 | Failed to encode upload audio payload |
+| `INFERENCE_ERROR` | 5 | Audio inference failed |
+| `SYNTHESIS_ERROR` | 5 | Text synthesis call failed |
+| `SYNTHESIS_FAILED` | 4 | Aggregation merge step failed |
+| `EMPTY_CHUNKS` | 4 | Aggregation received no chunk results |
+| `API_TIMEOUT` | 5 | Provider request timed out |
+| `API_NETWORK_ERROR` | 5 | Provider network request failed |
+| `API_HTTP_ERROR` | 5 | Provider request failed before a response body was parsed |
+| `API_RESPONSE_PARSE_ERROR` | 5 | Provider response shape was invalid |
+| `API_UNEXPECTED_CONTENT_TYPE` | 5 | Provider content type did not match expected text payload |
+| `API_ERROR_*` | 5 | Provider returned a non-200 API error code |
+| `MISSING_API_KEY` | 6 | API key missing in config and environment |
 | `PROMPT_FILE_NOT_FOUND` | 3 | The `--prompt-file` path does not exist |
 | `CONFIG_NOT_FOUND` | 6 | The `--config` file does not exist |
 | `CONFIG_PARSE_ERROR` | 6 | The config file contains invalid YAML |

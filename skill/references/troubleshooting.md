@@ -6,13 +6,13 @@
 zsh: command not found: agent-audio-gateway
 ```
 
-The package is not installed. Install it with:
+Install the package into your active environment:
 
 ```bash
 uv pip install -e /path/to/agent-audio-gateway
 ```
 
-Or ensure the virtualenv that has the package installed is active.
+Or activate the virtual environment where it is already installed.
 
 ---
 
@@ -22,9 +22,8 @@ Or ensure the virtualenv that has the package installed is active.
 {"status":"error","error":{"code":"FILE_NOT_FOUND","message":"File not found: ...","retryable":false}}
 ```
 
-- Verify the path is absolute and correct.
-- Ensure the file exists and the process has read access.
-- On macOS, check Full Disk Access permissions if the file is outside the home directory.
+- Verify the file path is correct and absolute.
+- Confirm the process has read permission.
 
 ---
 
@@ -36,72 +35,61 @@ Or ensure the virtualenv that has the package installed is active.
 
 Supported formats: `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`, `.aac`, `.opus`.
 
-Convert to a supported format first if needed:
+Convert unsupported files first:
+
 ```bash
 ffmpeg -i input.file output.wav
 ```
 
 ---
 
-## MODEL_LOAD_ERROR
+## MISSING_API_KEY
 
 ```json
-{"status":"error","error":{"code":"MODEL_LOAD_ERROR","retryable":false}}
+{"status":"error","error":{"code":"MISSING_API_KEY","retryable":false}}
 ```
 
-The Qwen2-Audio model could not be loaded. Check:
-
-1. The model has been downloaded locally (e.g., via `huggingface-cli download Qwen/Qwen2-Audio-7B-Instruct`)
-2. Sufficient RAM/VRAM is available (~14 GB for the 7B model)
-3. The `transformers` and `torch` packages are installed
-4. If using a custom model name, verify it in `config.default.yaml` or via `--config`
-
----
-
-## MISSING_DEPENDENCY
-
-```json
-{"status":"error","error":{"code":"MISSING_DEPENDENCY","retryable":false}}
-```
-
-Install the required packages:
+Provide an API key via config or environment:
 
 ```bash
-uv pip install transformers torch
+export OPENROUTER_API_KEY=sk-or-...
 ```
 
 ---
 
-## INFERENCE_ERROR
+## API timeout / network / rate limit errors
+
+Examples:
 
 ```json
-{"status":"error","error":{"code":"INFERENCE_ERROR","retryable":false}}
+{"status":"error","error":{"code":"API_TIMEOUT","retryable":true}}
+{"status":"error","error":{"code":"API_NETWORK_ERROR","retryable":true}}
+{"status":"error","error":{"code":"API_ERROR_429","retryable":true}}
 ```
 
-The model failed during inference. Common causes:
-
-- Out of memory — try `--no-segment` for short files, or reduce `--max-chunk-seconds`
-- Corrupted audio — verify the file with `agent-audio-gateway inspect`
-- CUDA error — check GPU memory and driver status
+- Retry once after a short delay.
+- Reduce `analysis.max_parallel_chunks` if rate-limited.
+- Lower `model.max_tokens` for shorter responses.
+- Check local network and provider status.
 
 ---
 
-## INVALID_CHUNK_PARAMS
+## The system feels slow
 
-```json
-{"status":"error","error":{"code":"INVALID_CHUNK_PARAMS","retryable":false}}
-```
+Most common causes:
 
-`--overlap-seconds` must be less than `--max-chunk-seconds`. Adjust the values.
+1. Repeated CLI cold starts in interactive loops.
+2. Large/long audio triggering many chunks.
+3. Upstream model latency.
 
----
+Tips:
 
-## The model takes a very long time to respond
-
-This is expected on first load (~14 GB model) and for longer audio files. Use `--no-segment` to skip chunking for short files, which reduces overhead.
+- Use `agent-audio-gateway serve` for interactive workflows.
+- Inspect `meta.timing_ms` in responses to locate bottlenecks.
+- Tune chunking (`--max-chunk-seconds`, `--overlap-seconds`) and parallelism (`analysis.max_parallel_chunks`).
 
 ---
 
 ## JSON output contains no observations
 
-The `result.observations` array may be empty if the model did not produce structured observation data for the given task. This is normal — the `summary` field always contains the primary output.
+The `result.observations` array may be empty for tasks that mainly produce summary text. Use `result.summary` as the primary output unless observations are present.

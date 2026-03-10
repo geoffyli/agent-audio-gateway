@@ -2,30 +2,31 @@
 
 ## Overview
 
-`agent-audio-gateway` is a **capability runtime** — a local layer between agent systems and audio files. It accepts local audio, routes it through a native audio model, handles chunking and aggregation, and returns structured JSON.
+`agent-audio-gateway` is a local runtime that gives tools and agents a stable interface for audio analysis.
+It accepts local audio files, performs local validation/preprocessing/chunking, then sends inference requests to OpenRouter-compatible audio models and returns structured JSON.
 
 ---
 
 ## Layers
 
 ```
-┌─────────────────────────────────────────────┐
-│  Layer 4 — Downstream business logic        │
-│  (speech coaching, interview tools, etc.)   │
-├─────────────────────────────────────────────┤
-│  Layer 3 — Agent skill package              │
-│  (SKILL.md — how to use the CLI)            │
-├─────────────────────────────────────────────┤
-│  Layer 2 — Front doors                      │
-│  CLI                │  Local server API     │
-├─────────────────────────────────────────────┤
-│  Layer 1 — Gateway Core (engine)            │
-│  Inspection → Preprocessing → Segmentation  │
-│  → Qwen2-Audio Adapter → Aggregation        │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Layer 4 — Downstream business logic                │
+│  (coaching tools, interview assistants, etc.)       │
+├──────────────────────────────────────────────────────┤
+│  Layer 3 — Agent skill package                      │
+│  (skill/SKILL.md + references)                      │
+├──────────────────────────────────────────────────────┤
+│  Layer 2 — Front doors                              │
+│  CLI                         │ Local HTTP server     │
+├──────────────────────────────────────────────────────┤
+│  Layer 1 — Gateway core                             │
+│  Inspection → Preprocessing → Segmentation          │
+│  → OpenRouter adapter → Aggregation                 │
+└──────────────────────────────────────────────────────┘
 ```
 
-The CLI and server **share the same core engine** — there is no duplicated logic between them.
+CLI and server both use the same `GatewayEngine`; there is no duplicated business logic.
 
 ---
 
@@ -35,19 +36,17 @@ The CLI and server **share the same core engine** — there is no duplicated log
 agent-audio-gateway/
 └── src/agent_audio_gateway/
     ├── core/
-    │   ├── engine.py           ← GatewayEngine: top-level orchestrator
-    │   ├── models.py           ← Pydantic request/response types
-    │   ├── config.py           ← GatewayConfig (YAML → Pydantic)
-    │   ├── exceptions.py       ← typed exception hierarchy
-    │   ├── inspection/         ← AudioInspector
-    │   ├── preprocessing/      ← AudioPreprocessor
-    │   ├── segmentation/       ← AudioSegmenter + AudioChunk
-    │   ├── aggregation/        ← ChunkAggregator
-    │   └── adapters/
-    │       ├── base.py         ← BaseAudioAdapter ABC
-    │       └── qwen2_audio/    ← Qwen2AudioAdapter
-    ├── cli/main.py             ← Click CLI
-    └── server/app.py           ← FastAPI server
+    │   ├── engine.py
+    │   ├── models.py
+    │   ├── config.py
+    │   ├── exceptions.py
+    │   ├── inspection/
+    │   ├── preprocessing/
+    │   ├── segmentation/
+    │   ├── aggregation/
+    │   └── adapters/openrouter/
+    ├── cli/main.py
+    └── server/app.py
 ```
 
 ---
@@ -58,26 +57,26 @@ agent-audio-gateway/
 Input audio file
     │
     ▼
-AudioInspector          ← validate path, format, extract metadata
-    │
+AudioInspector
+    │  validate path/format + metadata
     ▼
-AudioPreprocessor       ← librosa.load → 16 kHz mono numpy array
-    │
+AudioPreprocessor
+    │  decode audio + convert to mono
     ▼
 Should segment?
-    ├── No  ──────────────────────────────────────┐
+    ├── No  ───────────────────────────────────────┐
     │                                              │
     └── Yes                                       │
          │                                        │
          ▼                                        │
-    AudioSegmenter      ← fixed-window chunks     │
+    AudioSegmenter      fixed-size windows        │
          │                with overlap            │
          ▼                                        │
-    Qwen2AudioAdapter   ← per-chunk inference     │
-    (analyze × N)                                 │
+    OpenRouterAdapter   per-chunk inference       │
+    (parallel, bounded)                           │
          │                                        │
          ▼                                        │
-    ChunkAggregator     ← synthesize via LLM      │
+    ChunkAggregator     text synthesis merge      │
          │                                        │
          └───────────────────────────────────────►│
                                                   ▼
@@ -88,20 +87,18 @@ Should segment?
 
 ## Segmentation strategy
 
-Longer recordings are split into fixed-size overlapping windows:
+- Trigger: file duration > `analysis.segment_threshold_seconds` (default `30`)
+- Chunk size: `analysis.default_max_chunk_seconds` (default `25`)
+- Overlap: `analysis.default_overlap_seconds` (default `3`)
+- Parallelism: `analysis.max_parallel_chunks` (default `2`)
 
-- **Trigger:** file duration > `segment_threshold_seconds` (default: 30 s)
-- **Window size:** `max_chunk_seconds` (default: 25 s)
-- **Overlap:** `overlap_seconds` (default: 3 s)
-- **Step:** `max_chunk_seconds − overlap_seconds`
-
-Each chunk is analyzed independently. Results are then synthesized into a coherent final response via a text-only LLM call (Qwen2-Audio's underlying language model).
+Chunk outputs are merged into one final response by a synthesis call.
 
 ---
 
-## Adapter pattern
+## Adapter boundary
 
-The `BaseAudioAdapter` ABC isolates all model-specific code:
+`BaseAudioAdapter` isolates model-provider specifics:
 
 ```python
 class BaseAudioAdapter(ABC):
@@ -110,36 +107,33 @@ class BaseAudioAdapter(ABC):
     def model_name(self) -> str: ...
 ```
 
-`Qwen2AudioAdapter` implements this contract. Future adapters (other local models, cloud fallbacks) can be added without changing the engine.
-
-The model is **lazy-loaded** on the first inference call to avoid loading ~14 GB into memory until actually needed.
+`OpenRouterAdapter` handles:
+- API key resolution
+- request retries/backoff for retryable failures
+- payload construction for audio and text requests
 
 ---
 
-## Agent-agnostic design
+## Runtime and performance notes
 
-The runtime has no dependency on any specific agent framework:
-
-- The **CLI** is the primary agent integration boundary (portable across any shell-capable agent)
-- The **server** provides programmatic access for future UI apps or tool wrappers
-- The **skill package** is portable markdown instructions, not framework-specific code
-
-Business logic (speech coaching, interview analysis, etc.) lives in downstream skills built on top of the gateway — never inside the gateway itself.
+- CLI mode starts a new process for each invocation (higher fixed overhead).
+- Server mode (`serve`) keeps a warm engine in memory and is preferred for interactive workflows.
+- Responses include `meta.timing_ms` to surface stage-level timing (`inspect`, `preprocess`, `segment`, `inference`, `aggregate`, `total`).
 
 ---
 
 ## Configuration flow
 
-1. CLI/server startup reads a YAML config (or uses defaults)
-2. `GatewayConfig` is passed into `GatewayEngine`
-3. The engine distributes config values to sub-components at construction time
-4. No global mutable config state
+1. CLI/server loads YAML config (or defaults)
+2. `GatewayConfig` is passed to `GatewayEngine`
+3. Engine initializes sub-components from config
+4. No global mutable config state inside core pipeline
 
 ---
 
 ## Security and privacy
 
-- The server binds to `127.0.0.1` only (no external exposure by default)
-- File paths are validated before use
-- All inference runs locally — no audio is uploaded externally
-- Cached artifacts (if enabled) stay in `~/.agent-audio-gateway/cache`
+- HTTP server binds to `127.0.0.1` by default.
+- Input file paths are validated before processing.
+- Audio data is sent to the configured model provider (OpenRouter) for inference.
+- API key can come from config or `OPENROUTER_API_KEY` environment variable.

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from .adapters.openrouter.adapter import OpenRouterAdapter
@@ -19,7 +21,7 @@ from .models import (
     InspectResponse,
 )
 from .preprocessing.preprocessor import AudioPreprocessor
-from .segmentation.segmenter import AudioSegmenter
+from .segmentation.segmenter import AudioChunk, AudioSegmenter
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,13 @@ class GatewayEngine:
             api_key=config.model.api_key,
             base_url=config.model.base_url,
             max_tokens=config.model.max_tokens,
+            connect_timeout_seconds=config.model.connect_timeout_seconds,
+            read_timeout_seconds=config.model.read_timeout_seconds,
+            write_timeout_seconds=config.model.write_timeout_seconds,
+            pool_timeout_seconds=config.model.pool_timeout_seconds,
+            max_retries=config.model.max_retries,
+            retry_backoff_seconds=config.model.retry_backoff_seconds,
+            target_sample_rate_hz=config.analysis.target_sample_rate_hz,
         )
         self._aggregator = ChunkAggregator(adapter=self._adapter)
 
@@ -67,6 +76,7 @@ class GatewayEngine:
         return InspectResponse(file=file_info)
 
     def analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
+        total_start = time.perf_counter()
         request_id = f"req_{uuid.uuid4().hex[:8]}"
 
         # Resolve optional prompt file
@@ -75,38 +85,75 @@ class GatewayEngine:
             prompt_override = self._load_prompt_file(request.prompt_file)
 
         # Inspect
+        inspect_start = time.perf_counter()
         file_info = self._inspector.inspect(request.file_path)
+        inspect_elapsed = (time.perf_counter() - inspect_start) * 1000
 
         # Build the inference prompt
         task_key = request.task.value
-        prompt = prompt_override or TASK_PROMPTS.get(task_key, TASK_PROMPTS["summarize"])
+        prompt = prompt_override or TASK_PROMPTS.get(
+            task_key, TASK_PROMPTS["summarize"]
+        )
 
         # Load + preprocess audio
+        preprocess_start = time.perf_counter()
         audio, sr = self._preprocessor.load(request.file_path)
+        preprocess_elapsed = (time.perf_counter() - preprocess_start) * 1000
 
         # Decide whether to segment
         threshold = self.config.analysis.segment_threshold_seconds
         max_chunk = request.options.max_chunk_seconds
         overlap = request.options.overlap_seconds
-        do_segment = (
-            request.options.segment
-            and self._segmenter.should_segment(file_info.duration_sec, threshold)
+        do_segment = request.options.segment and self._segmenter.should_segment(
+            file_info.duration_sec, threshold
         )
 
         if do_segment:
+            segment_start = time.perf_counter()
             chunks = self._segmenter.segment(audio, sr, max_chunk, overlap)
-            logger.info(
-                "Analyzing %d chunk(s) for task '%s'", len(chunks), task_key
-            )
-            chunk_results = [
-                self._adapter.analyze(chunk.audio, sr, prompt) for chunk in chunks
-            ]
+            segment_elapsed = (time.perf_counter() - segment_start) * 1000
+            logger.info("Analyzing %d chunk(s) for task '%s'", len(chunks), task_key)
+
+            inference_start = time.perf_counter()
+            max_workers = min(self.config.analysis.max_parallel_chunks, len(chunks))
+            if max_workers <= 1:
+                chunk_results = [
+                    self._adapter.analyze(chunk.audio, sr, prompt) for chunk in chunks
+                ]
+            else:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    indexed_futures = {
+                        executor.submit(self._analyze_chunk, chunk, sr, prompt): i
+                        for i, chunk in enumerate(chunks)
+                    }
+                    chunk_results = [""] * len(chunks)
+                    try:
+                        for future in as_completed(indexed_futures):
+                            chunk_index = indexed_futures[future]
+                            chunk_results[chunk_index] = future.result()
+                    except Exception:
+                        for future in indexed_futures:
+                            future.cancel()
+                        raise
+            inference_elapsed = (time.perf_counter() - inference_start) * 1000
+
+            aggregate_start = time.perf_counter()
             summary = self._aggregator.merge(chunk_results, task_key)
+            aggregate_elapsed = (time.perf_counter() - aggregate_start) * 1000
             chunk_count = len(chunks)
         else:
+            segment_elapsed = 0.0
             logger.info("Analyzing single segment for task '%s'", task_key)
+
+            inference_start = time.perf_counter()
             summary = self._adapter.analyze(audio, sr, prompt)
+            inference_elapsed = (time.perf_counter() - inference_start) * 1000
+
+            aggregate_elapsed = 0.0
+            max_workers = 1
             chunk_count = 1
+
+        total_elapsed = (time.perf_counter() - total_start) * 1000
 
         return AnalyzeResponse(
             request_id=request_id,
@@ -121,6 +168,16 @@ class GatewayEngine:
                 "model": self._adapter.model_name,
                 "schema": request.output_schema,
                 "backend": self.config.model.backend,
+                "timing_ms": {
+                    "inspect": round(inspect_elapsed, 1),
+                    "preprocess": round(preprocess_elapsed, 1),
+                    "segment": round(segment_elapsed, 1),
+                    "inference": round(inference_elapsed, 1),
+                    "aggregate": round(aggregate_elapsed, 1),
+                    "total": round(total_elapsed, 1),
+                },
+                "parallel_chunks": max_workers,
+                "target_sample_rate_hz": self.config.analysis.target_sample_rate_hz,
             },
         )
 
@@ -153,3 +210,6 @@ class GatewayEngine:
                 code="PROMPT_FILE_NOT_FOUND",
             )
         return path.read_text().strip()
+
+    def _analyze_chunk(self, chunk: AudioChunk, sr: int, prompt: str) -> str:
+        return self._adapter.analyze(chunk.audio, sr, prompt)

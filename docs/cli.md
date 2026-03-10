@@ -6,6 +6,7 @@
 - Machine-friendly stdout (JSON only)
 - Logs and diagnostics on stderr
 - Deterministic exit codes
+- Prefer `serve` for interactive agent loops to avoid per-command process cold starts
 
 ---
 

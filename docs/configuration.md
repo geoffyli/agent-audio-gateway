@@ -1,72 +1,98 @@
 # Configuration Reference
 
-## Config file
+Most users do not need to tune this system.
 
-`agent-audio-gateway` accepts a YAML config file. Copy `config.default.yaml` as a starting point:
+If you set `OPENROUTER_API_KEY` and use defaults, the gateway is ready to run.
+
+---
+
+## Basic setup (recommended)
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+agent-audio-gateway analyze /path/to/file.wav --task summarize
+```
+
+Use a config file only when you want custom behavior:
 
 ```bash
 cp config.default.yaml my-config.yaml
 agent-audio-gateway --config my-config.yaml analyze /path/to/file.wav --task summarize
 ```
 
-The config path can also be set via the environment variable:
+You can also point to a config path via environment:
 
 ```bash
 export AGENT_AUDIO_GATEWAY_CONFIG=/path/to/my-config.yaml
-agent-audio-gateway analyze /path/to/file.wav --task summarize
 ```
-
-If no config is provided, all defaults are used.
 
 ---
 
-## Full reference
+## Minimal config most teams need
 
 ```yaml
 model:
-  # Which backend to use (currently only openrouter is supported)
-  backend: openrouter
-
-  # OpenRouter model identifier — see https://openrouter.ai/models for options
-  # Must support audio input (e.g. Gemini 2.0/2.5 Flash, GPT-4o audio)
-  id: google/gemini-2.0-flash-001
-
-  # OpenRouter API key. Leave blank to use the OPENROUTER_API_KEY env var (recommended).
-  # Never commit a real key to version control.
-  api_key: ""
-
-  # OpenRouter API base URL. Change only if using a compatible proxy.
-  base_url: https://openrouter.ai/api/v1
-
-  # Maximum tokens to generate per inference call
-  max_tokens: 1024
+  id: google/gemini-3.1-flash-lite-preview
 
 analysis:
-  # Files longer than this (in seconds) are split into chunks
   segment_threshold_seconds: 30.0
-
-  # Default maximum chunk duration in seconds
-  # Can be overridden per-call with --max-chunk-seconds
   default_max_chunk_seconds: 25.0
-
-  # Default overlap between consecutive chunks in seconds
-  # Can be overridden per-call with --overlap-seconds
   default_overlap_seconds: 3.0
+```
+
+Keep everything else at defaults unless you have a specific operational reason.
+
+---
+
+## Advanced controls (optional)
+
+These are operator knobs for production tuning, not required user inputs.
+
+| Key | Default | Tune when |
+|-----|---------|-----------|
+| `model.max_tokens` | `1024` | Responses are too short/long or you need cost control |
+| `model.connect_timeout_seconds` | `10.0` | Network connect is slow or unstable |
+| `model.read_timeout_seconds` | `120.0` | Upstream model responses are timing out |
+| `model.write_timeout_seconds` | `30.0` | Upload requests fail on slower links |
+| `model.pool_timeout_seconds` | `10.0` | High local request concurrency causes client pool waits |
+| `model.max_retries` | `2` | You need more/less resilience to transient `429`/`5xx` |
+| `model.retry_backoff_seconds` | `0.75` | You need gentler or faster retry behavior |
+| `analysis.target_sample_rate_hz` | `16000` | You need to trade fidelity vs latency/payload size |
+| `analysis.max_parallel_chunks` | `2` | Long audio is slow (increase) or rate-limited (decrease) |
+
+---
+
+## Full default config
+
+```yaml
+model:
+  backend: openrouter
+  id: google/gemini-3.1-flash-lite-preview
+  api_key: ""
+  base_url: https://openrouter.ai/api/v1
+  max_tokens: 1024
+  connect_timeout_seconds: 10.0
+  read_timeout_seconds: 120.0
+  write_timeout_seconds: 30.0
+  pool_timeout_seconds: 10.0
+  max_retries: 2
+  retry_backoff_seconds: 0.75
+
+analysis:
+  segment_threshold_seconds: 30.0
+  default_max_chunk_seconds: 25.0
+  default_overlap_seconds: 3.0
+  target_sample_rate_hz: 16000
+  max_parallel_chunks: 2
 
 output:
-  # Always output JSON (currently always true)
   default_json: true
 
 logging:
-  # Log level: debug, info, warning, error
-  # Logs are written to stderr
   level: info
 
 cache:
-  # Enable caching of analysis results (not yet implemented)
   enabled: false
-
-  # Directory for cached results
   dir: ~/.agent-audio-gateway/cache
 ```
 
@@ -74,7 +100,7 @@ cache:
 
 ## CLI overrides
 
-Some config values can be overridden per-command:
+Some analysis values can be overridden per-command:
 
 | Config key | CLI flag |
 |------------|----------|
@@ -84,9 +110,8 @@ Some config values can be overridden per-command:
 
 ---
 
-## Model configuration notes
+## Model notes
 
-- **API key** — set `OPENROUTER_API_KEY` in your environment (recommended) or put the key directly in `model.api_key`. Environment variable takes effect when `api_key` is blank.
-- **Switching models** — change `model.id` to any OpenRouter model that supports audio input. Models with audio token pricing on [openrouter.ai/models](https://openrouter.ai/models) support audio.
-- **`max_tokens`** — controls the length of generated responses. Increase for longer summaries; decrease to reduce latency and cost.
-- **Server restarts** — changing `model.id` or `model.api_key` takes effect on the next server start.
+- API key resolution order: `model.api_key` -> `OPENROUTER_API_KEY`.
+- Change `model.id` to any OpenRouter model that supports audio input.
+- Restart the server after changing model settings (`id`, `api_key`, timeouts, retries).

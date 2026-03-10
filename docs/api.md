@@ -24,7 +24,7 @@ Returns model info and status.
 ```json
 {
   "status": "ok",
-  "model": "Qwen/Qwen2-Audio-7B-Instruct",
+  "model": "google/gemini-3.1-flash-lite-preview",
   "version": "0.1.0"
 }
 ```
@@ -159,5 +159,5 @@ curl -X POST http://127.0.0.1:8000/ask \
 ## Notes
 
 - Inference runs on the server's thread pool — requests are non-blocking at the HTTP layer
-- The model is lazy-loaded on the first inference request
+- The server keeps one warm engine instance for all requests
 - The server shares its config with the CLI when started via `agent-audio-gateway serve`
