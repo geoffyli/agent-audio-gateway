@@ -27,10 +27,13 @@ A local audio capability runtime. Use this skill when you need to understand, an
 
 1. **Verify the file** — if the file path or format is uncertain, run `inspect` first.
 2. **Choose the right command** — use `analyze` for open-ended tasks, `ask` for specific questions.
-3. **Use JSON output** (the CLI default) to keep responses machine-readable.
-4. **Treat CLI output as authoritative** — do not invent analysis results.
-5. **Preserve timestamps and uncertainty** — surface them faithfully when they appear in the output.
-6. **Do not claim to have directly listened to the audio** unless you used this gateway.
+3. **Choose analysis mode**:
+   - Standard mode: no schema object, text-first result in `result.summary`.
+   - Structured mode: provide a JSON schema object via `--schema` JSON string, parsed object in `result.data`.
+4. **Use JSON output** (the CLI default) to keep responses machine-readable.
+5. **Treat CLI output as authoritative** — do not invent analysis results.
+6. **Preserve timestamps and uncertainty** — surface them faithfully when they appear in the output.
+7. **Do not claim to have directly listened to the audio** unless you used this gateway.
 
 ---
 
@@ -48,6 +51,10 @@ agent-audio-gateway analyze /absolute/path/to/file.wav --task summarize
 agent-audio-gateway analyze /absolute/path/to/file.wav --task describe
 agent-audio-gateway analyze /absolute/path/to/file.wav --task classify
 agent-audio-gateway analyze /absolute/path/to/file.wav --task extract-observations
+
+# Structured mode (schema-constrained)
+agent-audio-gateway analyze /absolute/path/to/file.wav \
+  --schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}'
 ```
 Returns: structured analysis result with summary and observations.
 
@@ -84,10 +91,13 @@ Returns: model info and status.
 | `--pretty` | Pretty-print the JSON output |
 | `--instruction TEXT` | Custom prompt override |
 | `--prompt-file PATH` | Load a custom prompt from a file |
+| `--schema TEXT` | JSON object string enables structured mode; non-object text is metadata only |
 | `--max-chunk-seconds N` | Override the maximum chunk size (default: 25s) |
 | `--overlap-seconds N` | Override chunk overlap (default: 3s) |
 | `--no-segment` | Disable chunking — analyze as a single unit |
 | `--config PATH` | Path to a custom YAML config file |
+
+Long-audio segmentation works in both standard mode and structured mode unless `--no-segment` is used.
 
 ---
 

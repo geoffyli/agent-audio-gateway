@@ -68,6 +68,34 @@ export OPENROUTER_API_KEY=sk-or-...
 
 ---
 
+## SCHEMA_INVALID
+
+```json
+{"status":"error","error":{"code":"SCHEMA_INVALID","retryable":false}}
+```
+
+- `--schema` looked like JSON but was invalid, or it parsed to a non-object value.
+- Pass a valid JSON object string.
+
+Example:
+
+```bash
+agent-audio-gateway analyze audio.wav --schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}'
+```
+
+---
+
+## SCHEMA_VALIDATION_FAILED
+
+```json
+{"status":"error","error":{"code":"SCHEMA_VALIDATION_FAILED","retryable":false}}
+```
+
+- Structured mode was requested, but model output was not a valid JSON object.
+- Retry once, then simplify the schema if needed.
+
+---
+
 ## API timeout / network / rate limit errors
 
 Examples:

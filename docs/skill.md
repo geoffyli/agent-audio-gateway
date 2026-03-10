@@ -19,7 +19,7 @@ Load `skill/SKILL.md` into your agent system as a skill, custom instruction, or 
 
 1. When to use the gateway (detecting relevant use cases)
 2. Which command to run for which task
-3. How to parse and faithfully report JSON results
+3. How to choose standard mode vs structured mode and parse results (`result.summary` vs `result.data`)
 4. How to handle errors
 5. How to avoid falling back to transcript-only reasoning
 

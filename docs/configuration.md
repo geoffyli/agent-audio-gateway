@@ -110,6 +110,8 @@ Some analysis values can be overridden per-command:
 | `analysis.default_overlap_seconds` | `--overlap-seconds` |
 | `analysis.segment_threshold_seconds` | disable with `--no-segment` |
 
+These chunking controls apply to both standard mode and structured mode.
+
 ---
 
 ## Model notes

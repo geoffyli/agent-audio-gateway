@@ -42,6 +42,7 @@ Returned by `analyze`, `ask` (CLI) and `POST /analyze`, `POST /ask` (server).
   "result": {
     "task": "summarize",
     "summary": "A speaker introduces a topic, followed by a Q&A session.",
+    "data": null,
     "observations": [
       {
         "timestamp": "00:00-00:18",
@@ -71,9 +72,11 @@ Returned by `analyze`, `ask` (CLI) and `POST /analyze`, `POST /ask` (server).
 **Field notes:**
 - `input.segmented` — `true` if the file was split into chunks before analysis
 - `input.chunk_count` — number of chunks analyzed (1 if not segmented)
+- `result.summary` — text output in standard mode; in structured mode, raw model JSON text
+- `result.data` — parsed JSON object in structured mode; `null` in standard mode
 - `result.observations` — may be empty `[]` depending on task and model output
 - `result.observations[].timestamp` — optional; present when the model infers timing
-- `meta.schema` — the `--schema` value passed by the caller, or `null`
+- `meta.schema` — caller schema metadata or schema object, or `null`
 - `meta.timing_ms` — stage timings in milliseconds for troubleshooting and tuning
 
 ---
@@ -139,6 +142,8 @@ Returned when any command fails. On the CLI, this goes to stdout. On the server,
 | `API_HTTP_ERROR` | Provider request failed before a response body was parsed |
 | `API_RESPONSE_PARSE_ERROR` | Provider response shape was invalid |
 | `API_UNEXPECTED_CONTENT_TYPE` | Provider content type did not match expected text payload |
+| `SCHEMA_INVALID` | CLI `--schema` looked like JSON but was invalid, or was not a JSON object |
+| `SCHEMA_VALIDATION_FAILED` | Structured mode model output was not valid JSON object |
 | `API_ERROR_*` | Provider returned a non-200 API error code |
 | `MISSING_API_KEY` | API key missing in config and environment |
 | `PROMPT_FILE_NOT_FOUND` | The file given to `--prompt-file` does not exist |
@@ -164,7 +169,13 @@ Returned when any command fails. On the CLI, this goes to stdout. On the server,
   "task": "summarize",
   "instruction": null,
   "prompt_file": null,
-  "schema": null,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "summary": {"type": "string"}
+    },
+    "required": ["summary"]
+  },
   "options": {
     "segment": true,
     "max_chunk_seconds": 25.0,

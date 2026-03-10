@@ -37,19 +37,26 @@ agent-audio-gateway analyze /path/to/file.wav --task summarize
 agent-audio-gateway analyze /path/to/file.wav --task extract-observations --pretty
 agent-audio-gateway analyze /path/to/file.wav --instruction "Focus on the speaker's tone."
 agent-audio-gateway analyze /path/to/file.wav --max-chunk-seconds 20 --overlap-seconds 2
+agent-audio-gateway analyze /path/to/file.wav --schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}'
 ```
 
 **Options:**
 - `--task TEXT` — task name: `summarize` | `describe` | `classify` | `extract-observations` | `qa` (default: `summarize`)
 - `--instruction TEXT` — custom prompt that overrides the default task prompt
 - `--prompt-file PATH` — path to a text file containing the custom prompt
-- `--schema TEXT` — output schema identifier (informational, included in `meta`)
+- `--schema TEXT` — if JSON object string, enables structured mode; otherwise treated as informational metadata
 - `--max-chunk-seconds N` — override max chunk duration in seconds
 - `--overlap-seconds N` — override chunk overlap in seconds
 - `--no-segment` — disable automatic segmentation
 - `--pretty` — pretty-print JSON output
 
 **Output:** `AnalyzeResponse` — see [json-schemas.md](json-schemas.md)
+
+Mode behavior:
+- Standard mode: no schema object; output is text-first in `result.summary`.
+- Structured mode: schema object provided; parsed object is returned in `result.data`.
+
+Long-audio chunking applies in both modes unless `--no-segment` is set.
 
 ---
 

@@ -66,7 +66,7 @@ agent-audio-gateway analyze FILE_PATH [OPTIONS]
 | `--task TEXT` | `summarize` | Task: `summarize`, `describe`, `classify`, `extract-observations`, `qa` |
 | `--instruction TEXT` | — | Custom prompt override |
 | `--prompt-file PATH` | — | Load custom prompt from a text file |
-| `--schema TEXT` | — | Output schema identifier (included in `meta`, informational) |
+| `--schema TEXT` | — | Structured mode if JSON object string; otherwise kept as informational metadata |
 | `--max-chunk-seconds N` | from config | Override max chunk duration |
 | `--overlap-seconds N` | from config | Override chunk overlap |
 | `--no-segment` | — | Disable chunking; analyze as a single unit |
@@ -87,11 +87,19 @@ agent-audio-gateway analyze speech.wav --instruction "Identify the speaker's mai
 # Disable chunking for a short file
 agent-audio-gateway analyze short.wav --task describe --no-segment
 
+# Structured mode (JSON schema string)
+agent-audio-gateway analyze call.wav --schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}'
+
 # Use a config file with custom chunking
 agent-audio-gateway --config my-config.yaml analyze long.wav --task summarize
 ```
 
 **Output:** [`AnalyzeResponse`](schemas.md#analyzeresponse)
+
+Mode behavior:
+- Standard mode: no schema object provided; returns normal text in `result.summary`.
+- Structured mode: schema JSON object provided via `--schema`; returns parsed object in `result.data`.
+- Long audio: segmentation/chunking still applies in both modes unless `--no-segment` is set.
 
 ---
 

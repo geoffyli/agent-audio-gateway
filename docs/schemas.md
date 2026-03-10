@@ -40,6 +40,7 @@ Returned by `analyze`, `ask`, `POST /analyze`, and `POST /ask`.
   "result": {
     "task": "summarize",
     "summary": "A speaker introduces a topic, followed by a Q&A session.",
+    "data": null,
     "observations": [
       {
         "timestamp": "00:00-00:18",
@@ -69,9 +70,11 @@ Returned by `analyze`, `ask`, `POST /analyze`, and `POST /ask`.
 **Field notes:**
 - `input.segmented` — `true` if the file was split before analysis
 - `input.chunk_count` — 1 if not segmented
+- `result.summary` — text output in standard mode; in structured mode, contains the raw model JSON text
+- `result.data` — parsed JSON object in structured mode; `null` in standard mode
 - `result.observations` — may be empty; depends on task and model output
 - `result.observations[].timestamp` — optional; present when the model infers timing
-- `meta.schema` — the `--schema` value passed by the caller, or `null`
+- `meta.schema` — caller schema metadata or schema object (`null` when not provided)
 - `meta.timing_ms` — stage timings in milliseconds for troubleshooting and tuning
 
 ---
@@ -125,6 +128,8 @@ Returned on failure. On the CLI, written to stdout. On the server, returned with
 | `API_HTTP_ERROR` | 5 | Provider request failed before a response body was parsed |
 | `API_RESPONSE_PARSE_ERROR` | 5 | Provider response shape was invalid |
 | `API_UNEXPECTED_CONTENT_TYPE` | 5 | Provider content type did not match expected text payload |
+| `SCHEMA_INVALID` | 3 | CLI `--schema` looked like JSON but was invalid, or was not a JSON object |
+| `SCHEMA_VALIDATION_FAILED` | 5 | Structured mode model output was not valid JSON object |
 | `API_ERROR_*` | 5 | Provider returned a non-200 API error code |
 | `MISSING_API_KEY` | 6 | API key missing in config and environment |
 | `PROMPT_FILE_NOT_FOUND` | 3 | The `--prompt-file` path does not exist |

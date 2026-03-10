@@ -11,7 +11,7 @@ import click
 from agent_audio_gateway import __version__
 from agent_audio_gateway.core.config import GatewayConfig
 from agent_audio_gateway.core.engine import GatewayEngine
-from agent_audio_gateway.core.exceptions import GatewayError
+from agent_audio_gateway.core.exceptions import GatewayError, InputError
 from agent_audio_gateway.core.models import AnalysisOptions, AnalyzeRequest, AskRequest
 
 
@@ -107,6 +107,29 @@ def _make_engine(config_path: Optional[str]) -> GatewayEngine:
     config = GatewayConfig.load(config_path)
     _setup_logging(config.logging.level)
     return GatewayEngine(config)
+
+
+def _parse_schema_option(schema: Optional[str]) -> dict[str, Any] | str | None:
+    if schema is None:
+        return None
+    trimmed = schema.strip()
+    if not trimmed:
+        return schema
+    if not trimmed.startswith("{"):
+        return schema
+    try:
+        parsed = json.loads(trimmed)
+    except json.JSONDecodeError as e:
+        raise InputError(
+            f"Invalid JSON schema: {e}",
+            code="SCHEMA_INVALID",
+        ) from e
+    if not isinstance(parsed, dict):
+        raise InputError(
+            "Schema must be a JSON object.",
+            code="SCHEMA_INVALID",
+        )
+    return parsed
 
 
 # ── CLI group ─────────────────────────────────────────────────────────────────
@@ -216,7 +239,7 @@ def analyze(
             task=task,
             instruction=instruction,
             prompt_file=prompt_file,
-            output_schema=schema,
+            output_schema=_parse_schema_option(schema),
             options=options,
         )
         return engine.analyze(request)

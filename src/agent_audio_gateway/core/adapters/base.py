@@ -5,12 +5,18 @@ from abc import ABC, abstractmethod
 
 class BaseAudioAdapter(ABC):
     @abstractmethod
-    def analyze(self, audio, sr: int, prompt: str) -> str:
+    def analyze(
+        self,
+        audio,
+        sr: int,
+        prompt: str,
+        schema: dict | None = None,
+    ) -> str:
         """Run inference on an audio chunk and return raw text output."""
         ...
 
     @abstractmethod
-    def synthesize(self, text: str) -> str:
+    def synthesize(self, text: str, schema: dict | None = None) -> str:
         """Text-only LLM call — used by the aggregator to merge chunk results."""
         ...
 

@@ -43,6 +43,11 @@ Expected shape:
 uv run agent-audio-gateway inspect /absolute/path/to/file.wav
 uv run agent-audio-gateway analyze /absolute/path/to/file.wav --task summarize --pretty
 uv run agent-audio-gateway ask /absolute/path/to/file.wav --question "What topics are discussed?" --pretty
+
+# Structured mode (schema-constrained output)
+uv run agent-audio-gateway analyze /absolute/path/to/file.wav \
+  --schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}' \
+  --pretty
 ```
 
 ## 5) Optional: run the local server

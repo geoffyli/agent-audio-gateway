@@ -12,7 +12,12 @@ class ChunkAggregator:
     def __init__(self, adapter: BaseAudioAdapter):
         self._adapter = adapter
 
-    def merge(self, chunk_results: list[str], task: str) -> str:
+    def merge(
+        self,
+        chunk_results: list[str],
+        task: str,
+        schema: dict | None = None,
+    ) -> str:
         """Merge per-chunk analysis results into a single coherent response.
 
         If there is only one chunk, return it directly.
@@ -25,7 +30,9 @@ class ChunkAggregator:
         if len(chunk_results) == 1:
             return chunk_results[0]
 
-        logger.debug("Aggregating %d chunk results for task '%s'", len(chunk_results), task)
+        logger.debug(
+            "Aggregating %d chunk results for task '%s'", len(chunk_results), task
+        )
 
         numbered = "\n".join(
             f"[Chunk {i + 1}]\n{result}" for i, result in enumerate(chunk_results)
@@ -38,7 +45,7 @@ class ChunkAggregator:
         )
 
         try:
-            return self._adapter.synthesize(prompt)
+            return self._adapter.synthesize(prompt, schema=schema)
         except Exception as e:
             raise AggregationError(
                 f"Failed to synthesize chunk results: {e}",

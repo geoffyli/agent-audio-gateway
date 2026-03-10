@@ -35,7 +35,7 @@ class AnalyzeRequest(BaseModel):
     task: TaskName = TaskName.summarize
     instruction: Optional[str] = None
     prompt_file: Optional[str] = None
-    output_schema: Optional[str] = Field(None, alias="schema")
+    output_schema: Optional[dict[str, Any] | str] = Field(None, alias="schema")
     options: AnalysisOptions = Field(default_factory=AnalysisOptions)
 
 
@@ -70,6 +70,7 @@ class Observation(BaseModel):
 class AnalysisResult(BaseModel):
     task: str
     summary: str
+    data: Optional[dict[str, Any]] = None
     observations: list[Observation] = Field(default_factory=list)
 
 

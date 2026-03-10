@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -9,7 +10,7 @@ from pathlib import Path
 from .adapters.openrouter.adapter import OpenRouterAdapter
 from .aggregation.aggregator import ChunkAggregator
 from .config import GatewayConfig
-from .exceptions import InputError
+from .exceptions import InputError, ModelError
 from .inspection.inspector import AudioInspector
 from .models import (
     AnalyzeRequest,
@@ -83,6 +84,10 @@ class GatewayEngine:
         prompt = prompt_override or TASK_PROMPTS.get(
             task_key, TASK_PROMPTS["summarize"]
         )
+        structured_schema = (
+            request.output_schema if isinstance(request.output_schema, dict) else None
+        )
+        structured_mode = structured_schema is not None
 
         # Load + preprocess audio
         preprocess_start = time.perf_counter()
@@ -127,7 +132,11 @@ class GatewayEngine:
             inference_elapsed = (time.perf_counter() - inference_start) * 1000
 
             aggregate_start = time.perf_counter()
-            summary = self._ensure_aggregator().merge(chunk_results, task_key)
+            summary = self._ensure_aggregator().merge(
+                chunk_results,
+                task_key,
+                schema=structured_schema,
+            )
             aggregate_elapsed = (time.perf_counter() - aggregate_start) * 1000
             chunk_count = len(chunks)
         else:
@@ -135,12 +144,28 @@ class GatewayEngine:
             logger.info("Analyzing single segment for task '%s'", task_key)
 
             inference_start = time.perf_counter()
-            summary = adapter.analyze(audio, sr, prompt)
+            summary = adapter.analyze(audio, sr, prompt, schema=structured_schema)
             inference_elapsed = (time.perf_counter() - inference_start) * 1000
 
             aggregate_elapsed = 0.0
             max_workers = 1
             chunk_count = 1
+
+        result_data = None
+        if structured_mode:
+            try:
+                parsed = json.loads(summary)
+            except json.JSONDecodeError as e:
+                raise ModelError(
+                    f"Structured output was not valid JSON: {e}",
+                    code="SCHEMA_VALIDATION_FAILED",
+                ) from e
+            if not isinstance(parsed, dict):
+                raise ModelError(
+                    "Structured output must be a JSON object.",
+                    code="SCHEMA_VALIDATION_FAILED",
+                )
+            result_data = parsed
 
         total_elapsed = (time.perf_counter() - total_start) * 1000
 
@@ -152,7 +177,7 @@ class GatewayEngine:
                 segmented=do_segment,
                 chunk_count=chunk_count,
             ),
-            result=AnalysisResult(task=task_key, summary=summary),
+            result=AnalysisResult(task=task_key, summary=summary, data=result_data),
             meta={
                 "model": adapter.model_name,
                 "schema": request.output_schema,

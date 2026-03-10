@@ -67,13 +67,19 @@ agent-audio-gateway version
 | Command | Description |
 |---------|-------------|
 | `inspect <file>` | Extract audio file metadata (format, duration, sample rate, etc.) |
-| `analyze <file>` | Analyze audio using a named task (summarize, describe, classify, etc.) |
+| `analyze <file>` | Analyze audio in standard mode or schema-constrained structured mode |
 | `ask <file> --question TEXT` | Answer a specific question about the audio |
 | `health` | Return model info and status |
 | `version` | Print the current version |
 | `serve` | Start the local HTTP server |
 
 All commands output JSON to stdout. Logs and diagnostics go to stderr.
+
+### Analyze modes
+
+- **Standard mode**: no schema object provided. Returns text-first output in `result.summary`.
+- **Structured mode**: provide a JSON schema object via `schema` (HTTP) or `--schema` JSON object string (CLI). Returns parsed JSON object in `result.data`.
+- Long-audio chunking applies in both modes when segmentation is enabled and duration exceeds threshold.
 
 ---
 

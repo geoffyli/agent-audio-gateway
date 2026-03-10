@@ -72,7 +72,13 @@ Analyze an audio file using a named task.
   "task": "summarize",
   "instruction": null,
   "prompt_file": null,
-  "schema": null,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "summary": {"type": "string"}
+    },
+    "required": ["summary"]
+  },
   "options": {
     "segment": true,
     "max_chunk_seconds": 25.0,
@@ -82,6 +88,11 @@ Analyze an audio file using a named task.
 ```
 
 All fields except `file_path` are optional. `task` defaults to `"summarize"`.
+
+Mode behavior:
+- Standard mode: omit `schema` (or pass non-object metadata string) for existing text output behavior.
+- Structured mode: pass a JSON schema object in `schema`; the model is constrained and parsed JSON is returned in `result.data`.
+- Long audio: segmentation/chunking behavior remains enabled in both modes when `options.segment` is true.
 
 **Response:** [`AnalyzeResponse`](schemas.md#analyzeresponse)
 

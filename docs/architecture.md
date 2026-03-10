@@ -76,7 +76,7 @@ Should segment?
     (parallel, bounded)                           │
          │                                        │
          ▼                                        │
-    ChunkAggregator     text synthesis merge      │
+    ChunkAggregator     synthesis merge           │
          │                                        │
          └───────────────────────────────────────►│
                                                   ▼
@@ -94,6 +94,10 @@ Should segment?
 
 Chunk outputs are merged into one final response by a synthesis call.
 
+Mode behavior:
+- Standard mode (no schema object): chunk outputs are merged as text.
+- Structured mode (schema object provided): chunk outputs are merged with schema-constrained synthesis; final output is parsed JSON object.
+
 ---
 
 ## Adapter boundary
@@ -102,8 +106,14 @@ Chunk outputs are merged into one final response by a synthesis call.
 
 ```python
 class BaseAudioAdapter(ABC):
-    def analyze(self, audio: np.ndarray, sr: int, prompt: str) -> str: ...
-    def synthesize(self, text: str) -> str: ...
+    def analyze(
+        self,
+        audio: np.ndarray,
+        sr: int,
+        prompt: str,
+        schema: dict | None = None,
+    ) -> str: ...
+    def synthesize(self, text: str, schema: dict | None = None) -> str: ...
     def model_name(self) -> str: ...
 ```
 
@@ -111,6 +121,7 @@ class BaseAudioAdapter(ABC):
 - API key resolution
 - request retries/backoff for retryable failures
 - payload construction for audio and text requests
+- structured output payload wiring (`response_format=json_schema`) when schema is provided
 
 ---
 

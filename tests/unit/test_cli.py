@@ -59,6 +59,55 @@ def test_analyze_preserves_zero_overlap_override(monkeypatch) -> None:
     assert engine.analyze_request.options.overlap_seconds == 0.0
 
 
+def test_analyze_schema_parses_json_object(monkeypatch) -> None:
+    engine = _FakeEngine()
+    monkeypatch.setattr(main, "_make_engine", lambda _config_path: engine)
+
+    result = CliRunner().invoke(
+        main.cli,
+        [
+            "analyze",
+            "audio.wav",
+            "--schema",
+            '{"type":"object","properties":{"title":{"type":"string"}}}',
+            "--no-segment",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert engine.analyze_request is not None
+    assert isinstance(engine.analyze_request.output_schema, dict)
+    assert engine.analyze_request.output_schema["type"] == "object"
+
+
+def test_analyze_schema_keeps_plain_string(monkeypatch) -> None:
+    engine = _FakeEngine()
+    monkeypatch.setattr(main, "_make_engine", lambda _config_path: engine)
+
+    result = CliRunner().invoke(
+        main.cli,
+        ["analyze", "audio.wav", "--schema", "v1-summary", "--no-segment"],
+    )
+
+    assert result.exit_code == 0
+    assert engine.analyze_request is not None
+    assert engine.analyze_request.output_schema == "v1-summary"
+
+
+def test_analyze_schema_invalid_json_returns_schema_invalid(monkeypatch) -> None:
+    engine = _FakeEngine()
+    monkeypatch.setattr(main, "_make_engine", lambda _config_path: engine)
+
+    result = CliRunner().invoke(
+        main.cli,
+        ["analyze", "audio.wav", "--schema", "{invalid-json}", "--no-segment"],
+    )
+
+    assert result.exit_code == 3
+    payload = json.loads(result.output)
+    assert payload["error"]["code"] == "SCHEMA_INVALID"
+
+
 def test_ask_preserves_zero_overlap_override(monkeypatch) -> None:
     engine = _FakeEngine()
     monkeypatch.setattr(main, "_make_engine", lambda _config_path: engine)

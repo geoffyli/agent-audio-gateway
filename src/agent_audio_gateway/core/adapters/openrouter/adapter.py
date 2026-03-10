@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import time
+from typing import Any
 
 import httpx
 import numpy as np
@@ -107,13 +108,23 @@ class OpenRouterAdapter(BaseAudioAdapter):
 
     # ── HTTP helper ───────────────────────────────────────────────────────────
 
-    def _post(self, messages: list[dict]) -> str:
+    def _post(self, messages: list[dict], schema: dict[str, Any] | None = None) -> str:
         """POST to /chat/completions and return the text of choices[0].message.content."""
         payload = {
             "model": self._model_id,
             "messages": messages,
             "max_tokens": self._max_tokens,
         }
+        if schema is not None:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "analysis_output",
+                    "strict": True,
+                    "schema": schema,
+                },
+            }
+            payload["provider"] = {"require_parameters": True}
         attempt = 0
 
         while True:
@@ -168,6 +179,13 @@ class OpenRouterAdapter(BaseAudioAdapter):
                 code="API_RESPONSE_PARSE_ERROR",
             ) from e
 
+        if isinstance(content, list):
+            content = "".join(
+                part.get("text", "")
+                for part in content
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            )
+
         if not isinstance(content, str):
             raise ModelError(
                 f"OpenRouter returned non-string content: {type(content).__name__}",
@@ -177,7 +195,13 @@ class OpenRouterAdapter(BaseAudioAdapter):
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def analyze(self, audio, sr: int, prompt: str) -> str:
+    def analyze(
+        self,
+        audio,
+        sr: int,
+        prompt: str,
+        schema: dict[str, Any] | None = None,
+    ) -> str:
         """Run audio + text inference via OpenRouter and return the response text."""
         logger.debug(
             "analyze: model=%s audio_samples=%d sr=%d",
@@ -213,13 +237,13 @@ class OpenRouterAdapter(BaseAudioAdapter):
             }
         ]
         try:
-            return self._post(messages)
+            return self._post(messages, schema=schema)
         except ModelError:
             raise
         except Exception as e:
             raise ModelError(f"Inference failed: {e}", code="INFERENCE_ERROR") from e
 
-    def synthesize(self, text: str) -> str:
+    def synthesize(self, text: str, schema: dict[str, Any] | None = None) -> str:
         """Text-only call — used by ChunkAggregator to merge chunk results."""
         logger.debug("synthesize: model=%s text_len=%d", self._model_id, len(text))
         messages = [
@@ -229,7 +253,7 @@ class OpenRouterAdapter(BaseAudioAdapter):
             }
         ]
         try:
-            return self._post(messages)
+            return self._post(messages, schema=schema)
         except ModelError:
             raise
         except Exception as e:
