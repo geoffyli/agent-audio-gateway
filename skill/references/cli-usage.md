@@ -10,6 +10,8 @@ Options:
                   Also readable from env: AGENT_AUDIO_GATEWAY_CONFIG
 ```
 
+Note: JSON is always emitted by default for CLI responses. There is no `--json` flag; use `--pretty` for formatted output.
+
 ---
 
 ## Commands

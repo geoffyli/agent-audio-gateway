@@ -1,6 +1,8 @@
 # JSON Schemas Reference
 
-All responses from both the CLI and local server follow the shapes defined here.
+Response schemas below are guaranteed for successful responses, and for GatewayError-based failures.
+
+Note: server-side request validation failures (FastAPI/Pydantic 422) use FastAPI's default `{"detail": [...]}` error shape, not the Gateway `ErrorResponse` envelope.
 
 ---
 
@@ -43,13 +45,7 @@ Returned by `analyze`, `ask` (CLI) and `POST /analyze`, `POST /ask` (server).
     "task": "summarize",
     "summary": "A speaker introduces a topic, followed by a Q&A session.",
     "data": null,
-    "observations": [
-      {
-        "timestamp": "00:00-00:18",
-        "type": "speech",
-        "note": "The speaker opens with an introduction."
-      }
-    ]
+    "observations": []
   },
   "meta": {
     "model": "google/gemini-3.1-flash-lite-preview",
@@ -74,7 +70,7 @@ Returned by `analyze`, `ask` (CLI) and `POST /analyze`, `POST /ask` (server).
 - `input.chunk_count` — number of chunks analyzed (1 if not segmented)
 - `result.summary` — text output in standard mode; in structured mode, raw model JSON text
 - `result.data` — parsed JSON object in structured mode; `null` in standard mode
-- `result.observations` — may be empty `[]` depending on task and model output
+- `result.observations` — schema field for structured observations; currently typically empty in runtime responses
 - `result.observations[].timestamp` — optional; present when the model infers timing
 - `meta.schema` — caller schema metadata or schema object, or `null`
 - `meta.timing_ms` — stage timings in milliseconds for troubleshooting and tuning
@@ -109,7 +105,7 @@ Returned by `version` (CLI) and `GET /version` (server).
 
 ## ErrorResponse
 
-Returned when any command fails. On the CLI, this goes to stdout. On the server, it is returned with an appropriate HTTP status code.
+Returned for GatewayError-based failures. On the CLI, this is emitted to stdout as JSON. On the server, it is returned with an appropriate HTTP status code.
 
 ```json
 {
@@ -151,7 +147,24 @@ Returned when any command fails. On the CLI, this goes to stdout. On the server,
 | `CONFIG_NOT_FOUND` | The config file specified via `--config` does not exist |
 | `CONFIG_PARSE_ERROR` | The config file contains invalid YAML |
 | `CONFIG_LOAD_ERROR` | The config file could not be loaded |
-| `INTERNAL_ERROR` | Unexpected runtime error |
+
+---
+
+## Server validation errors (FastAPI 422)
+
+When request body validation fails before engine execution, FastAPI returns its default 422 error shape:
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "task"],
+      "msg": "Input should be 'summarize', 'describe', 'classify', 'extract-observations' or 'qa'",
+      "type": "enum"
+    }
+  ]
+}
+```
 
 ---
 

@@ -66,6 +66,53 @@ Provide an API key via config or environment:
 export OPENROUTER_API_KEY=sk-or-...
 ```
 
+Or set `model.api_key` in your YAML config.
+
+---
+
+## API timeout / network / rate limit errors
+
+Examples:
+
+```json
+{"status":"error","error":{"code":"API_TIMEOUT","retryable":true}}
+{"status":"error","error":{"code":"API_NETWORK_ERROR","retryable":true}}
+{"status":"error","error":{"code":"API_ERROR_429","retryable":true}}
+```
+
+- Retry once after a short delay.
+- Reduce `analysis.max_parallel_chunks` if rate-limited.
+- Lower `model.max_tokens` for shorter responses.
+- Check local network and provider status.
+
+---
+
+## API_HTTP_ERROR / API_ERROR_*
+
+```json
+{"status":"error","error":{"code":"API_HTTP_ERROR","retryable":false}}
+{"status":"error","error":{"code":"API_ERROR_429","retryable":true}}
+```
+
+- `API_ERROR_429` and most `API_ERROR_5xx` are retryable; back off and retry once.
+- For `API_ERROR_4xx` (except 429), fix request/auth/model settings before retrying.
+- Check model id and base URL in config if errors persist.
+
+---
+
+## API_RESPONSE_PARSE_ERROR / API_UNEXPECTED_CONTENT_TYPE
+
+```json
+{"status":"error","error":{"code":"API_RESPONSE_PARSE_ERROR","retryable":false}}
+{"status":"error","error":{"code":"API_UNEXPECTED_CONTENT_TYPE","retryable":false}}
+```
+
+The upstream API response format was not what the runtime expected.
+
+- Capture full response context/logs for diagnosis.
+- Verify the configured endpoint is OpenRouter-compatible.
+- Retry once; if persistent, treat as provider/compatibility issue.
+
 ---
 
 ## SCHEMA_INVALID
@@ -96,20 +143,30 @@ agent-audio-gateway analyze audio.wav --schema '{"type":"object","properties":{"
 
 ---
 
-## API timeout / network / rate limit errors
-
-Examples:
+## INFERENCE_ERROR
 
 ```json
-{"status":"error","error":{"code":"API_TIMEOUT","retryable":true}}
-{"status":"error","error":{"code":"API_NETWORK_ERROR","retryable":true}}
-{"status":"error","error":{"code":"API_ERROR_429","retryable":true}}
+{"status":"error","error":{"code":"INFERENCE_ERROR","retryable":false}}
 ```
 
-- Retry once after a short delay.
-- Reduce `analysis.max_parallel_chunks` if rate-limited.
-- Lower `model.max_tokens` for shorter responses.
-- Check local network and provider status.
+The model failed during inference. Common causes:
+
+- Corrupted or malformed audio — verify the file with `agent-audio-gateway inspect`
+- Upstream provider instability
+- Unexpected adapter/runtime exception
+
+---
+
+## AUDIO_ENCODE_ERROR
+
+```json
+{"status":"error","error":{"code":"AUDIO_ENCODE_ERROR","retryable":false}}
+```
+
+The runtime failed to encode decoded audio to WAV/base64 before sending to the API.
+
+- Re-encode the source file (e.g., with ffmpeg) and retry.
+- Verify local audio dependencies (`soundfile`, codec support) are installed correctly.
 
 ---
 
@@ -131,4 +188,4 @@ Tips:
 
 ## JSON output contains no observations
 
-The `result.observations` array may be empty for tasks that mainly produce summary text. Use `result.summary` as the primary output unless observations are present.
+The `result.observations` array is schema-supported but typically empty in the current runtime. This is normal — the `summary` field contains the primary output.

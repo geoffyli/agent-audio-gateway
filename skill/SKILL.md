@@ -1,6 +1,11 @@
+---
+name: agent-audio-gateway
+description: Use this skill when you need to inspect, analyze, summarize, classify, or answer questions about a local audio file using native audio reasoning (especially when transcript-only reasoning is insufficient).
+---
+
 # Agent Audio Gateway
 
-A local audio capability runtime. Use this skill when you need to understand, analyze, or query a local audio file using native audio reasoning rather than transcript-only approaches.
+A local CLI/server runtime for audio understanding that analyzes local files via OpenRouter cloud inference. Use this skill when you need to understand, analyze, or query a local audio file using native audio reasoning rather than transcript-only approaches.
 
 ---
 
@@ -30,7 +35,7 @@ A local audio capability runtime. Use this skill when you need to understand, an
 3. **Choose analysis mode**:
    - Standard mode: no schema object, text-first result in `result.summary`.
    - Structured mode: provide a JSON schema object via `--schema` JSON string, parsed object in `result.data`.
-4. **Use JSON output** (the CLI default) to keep responses machine-readable.
+4. **JSON output is the default** — use `--pretty` when you want formatted output.
 5. **Treat CLI output as authoritative** — do not invent analysis results.
 6. **Preserve timestamps and uncertainty** — surface them faithfully when they appear in the output.
 7. **Do not claim to have directly listened to the audio** unless you used this gateway.
@@ -57,6 +62,8 @@ agent-audio-gateway analyze /absolute/path/to/file.wav \
   --schema '{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}'
 ```
 Returns: structured analysis result with summary and observations.
+
+Note: the `observations` field is part of the schema but is typically empty in the current runtime.
 
 ### Ask a question
 ```bash
@@ -103,6 +110,7 @@ Long-audio segmentation works in both standard mode and structured mode unless `
 
 ## Error handling
 
+- Inference is cloud-backed: audio content is transmitted to the configured OpenRouter API endpoint.
 - If the file does not exist, explain the path issue clearly.
 - If the command returns a JSON error response, surface the `error.code` and `error.message`.
 - If `error.retryable` is `true`, you may retry once after a short wait.
