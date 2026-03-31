@@ -18,6 +18,7 @@ class AudioPreprocessor:
         soundfile_error = None
         try:
             audio, sr = self._load_with_soundfile(file_path)
+            self._validate_audio(audio, file_path)
             logger.debug(
                 "Loaded %s via soundfile: %.2fs at %dHz (%d samples)",
                 file_path,
@@ -26,6 +27,8 @@ class AudioPreprocessor:
                 len(audio),
             )
             return audio, sr
+        except PreprocessingError:
+            raise
         except Exception as e:
             soundfile_error = e
             logger.debug(
@@ -36,6 +39,7 @@ class AudioPreprocessor:
 
         try:
             audio, sr = self._load_with_librosa(file_path)
+            self._validate_audio(audio, file_path)
             logger.debug(
                 "Loaded %s via librosa fallback: %.2fs at %dHz (%d samples)",
                 file_path,
@@ -44,10 +48,20 @@ class AudioPreprocessor:
                 len(audio),
             )
             return audio, sr
+        except PreprocessingError:
+            raise
         except Exception as e:
             raise PreprocessingError(
                 f"Failed to load audio (soundfile error: {soundfile_error}; librosa error: {e})",
                 code="AUDIO_LOAD_ERROR",
+            ) from e
+
+    @staticmethod
+    def _validate_audio(audio: np.ndarray, file_path: str) -> None:
+        if not np.isfinite(audio).all():
+            raise PreprocessingError(
+                f"Audio data contains NaN or infinite values: {file_path}",
+                code="AUDIO_INVALID_DATA",
             )
 
     @staticmethod

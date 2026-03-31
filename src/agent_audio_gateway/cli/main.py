@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import ipaddress
+import json
 import logging
 import sys
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import click
 
@@ -13,7 +14,6 @@ from agent_audio_gateway.core.config import GatewayConfig
 from agent_audio_gateway.core.engine import GatewayEngine
 from agent_audio_gateway.core.exceptions import GatewayError, InputError
 from agent_audio_gateway.core.models import AnalysisOptions, AnalyzeRequest, AskRequest
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -76,8 +76,8 @@ def _resolve_analysis_options(
     engine: GatewayEngine,
     *,
     no_segment: bool,
-    max_chunk_seconds: Optional[float],
-    overlap_seconds: Optional[float],
+    max_chunk_seconds: float | None,
+    overlap_seconds: float | None,
 ) -> AnalysisOptions:
     return AnalysisOptions(
         segment=not no_segment,
@@ -103,13 +103,13 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
-def _make_engine(config_path: Optional[str]) -> GatewayEngine:
+def _make_engine(config_path: str | None) -> GatewayEngine:
     config = GatewayConfig.load(config_path)
     _setup_logging(config.logging.level)
     return GatewayEngine(config)
 
 
-def _parse_schema_option(schema: Optional[str]) -> dict[str, Any] | str | None:
+def _parse_schema_option(schema: str | None) -> dict[str, Any] | str | None:
     if schema is None:
         return None
     trimmed = schema.strip()
@@ -145,7 +145,7 @@ def _parse_schema_option(schema: Optional[str]) -> dict[str, Any] | str | None:
     metavar="PATH",
 )
 @click.pass_context
-def cli(ctx: click.Context, config_path: Optional[str]) -> None:
+def cli(ctx: click.Context, config_path: str | None) -> None:
     """agent-audio-gateway — local audio capability runtime."""
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config_path
@@ -216,11 +216,11 @@ def analyze(
     ctx: click.Context,
     file_path: str,
     task: str,
-    instruction: Optional[str],
-    prompt_file: Optional[str],
-    schema: Optional[str],
-    max_chunk_seconds: Optional[float],
-    overlap_seconds: Optional[float],
+    instruction: str | None,
+    prompt_file: str | None,
+    schema: str | None,
+    max_chunk_seconds: float | None,
+    overlap_seconds: float | None,
     no_segment: bool,
     pretty: bool,
 ) -> None:
@@ -283,8 +283,8 @@ def ask(
     ctx: click.Context,
     file_path: str,
     question: str,
-    max_chunk_seconds: Optional[float],
-    overlap_seconds: Optional[float],
+    max_chunk_seconds: float | None,
+    overlap_seconds: float | None,
     no_segment: bool,
     pretty: bool,
 ) -> None:
@@ -364,6 +364,13 @@ def serve(
         raise click.UsageError(
             "Refusing to bind to non-loopback host without --allow-remote. "
             "This server has no authentication and is intended for local use."
+        )
+
+    if not _is_loopback_host(host) and allow_remote:
+        print(
+            f"WARNING: server bound to '{host}' with no authentication. "
+            "Do not expose on untrusted networks.",
+            file=sys.stderr,
         )
 
     config_path = ctx.obj.get("config_path")

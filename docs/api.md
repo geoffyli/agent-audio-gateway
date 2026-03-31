@@ -89,6 +89,9 @@ Analyze an audio file using a named task.
 
 All fields except `file_path` are optional. `task` defaults to `"summarize"`.
 
+**Field notes:**
+- `instruction` — overrides the default analysis prompt; maximum 8192 characters.
+
 Mode behavior:
 - Standard mode: omit `schema` (or pass non-object metadata string) for existing text output behavior.
 - Structured mode: pass a JSON schema object in `schema`; the model is constrained and parsed JSON is returned in `result.data`.
@@ -118,6 +121,9 @@ Answer a question about an audio file.
 ```
 
 **Response:** [`AnalyzeResponse`](schemas.md#analyzeresponse) with `result.task = "qa"`
+
+**Field notes:**
+- `question` — maximum 8192 characters.
 
 ---
 
@@ -176,3 +182,5 @@ curl -X POST http://127.0.0.1:8000/ask \
 - Inference runs on the server's thread pool — requests are non-blocking at the HTTP layer
 - The server keeps one warm engine instance for all requests
 - The server shares its config with the CLI when started via `agent-audio-gateway serve`
+- **Request timeout:** Each endpoint has a server-side timeout (default 300s), configurable via `server.request_timeout_seconds`. Requests exceeding this limit return HTTP 500 with code `REQUEST_TIMEOUT`.
+- **File access restriction (server mode):** When `server.permitted_audio_dir` is set in config, the `/inspect` and `/analyze` endpoints only allow files within that directory. Paths outside it return HTTP 422 with code `PATH_NOT_PERMITTED`. By default, no restriction is applied.

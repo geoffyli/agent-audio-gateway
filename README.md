@@ -124,8 +124,8 @@ The config path can also be set via the `AGENT_AUDIO_GATEWAY_CONFIG` environment
 
 The OpenRouter API key is resolved in this order:
 
-1. `model.api_key` in the config file
-2. `OPENROUTER_API_KEY` environment variable
+1. `OPENROUTER_API_KEY` environment variable (**recommended**)
+2. `model.api_key` in the config file (emits a deprecation warning — avoid committing credentials)
 
 If neither is set, analysis operations (`analyze`, `ask`, and API equivalents) fail with
 `MISSING_API_KEY` (exit code 6 on CLI).
@@ -170,6 +170,7 @@ See [`skill/SKILL.md`](skill/SKILL.md) for ready-to-use instructions that teach 
 | [docs/api.md](docs/api.md) | Local server API reference |
 | [docs/schemas.md](docs/schemas.md) | JSON request and response schemas |
 | [docs/configuration.md](docs/configuration.md) | Configuration reference |
+| [docs/security.md](docs/security.md) | Security model, API key management, file-access restrictions |
 
 ---
 

@@ -4,14 +4,14 @@ version = "0.1.0"
 description = "A local, agent-oriented audio capability runtime"
 requires-python = ">=3.10"
 dependencies = [
-    "click>=8.0",
-    "fastapi>=0.100",
-    "uvicorn[standard]>=0.20",
-    "httpx>=0.25",
-    "librosa>=0.10",
-    "soundfile>=0.12",
-    "pydantic>=2.0",
-    "pyyaml>=6.0",
+    "click>=8.0,<9",
+    "fastapi>=0.100,<1",
+    "uvicorn[standard]>=0.20,<1",
+    "httpx>=0.25,<1",
+    "librosa>=0.10,<1",
+    "soundfile>=0.12,<1",
+    "pydantic>=2.0,<3",
+    "pyyaml>=6.0,<7",
 ]
 
 [project.scripts]
@@ -25,4 +25,21 @@ build-backend = "hatchling.build"
 packages = ["src/agent_audio_gateway"]
 
 [dependency-groups]
-dev = ["pytest>=7.0"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true

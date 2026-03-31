@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from click.testing import CliRunner
 
 from agent_audio_gateway.cli import main
-from agent_audio_gateway.core.models import AnalyzeResponse, AnalysisResult, InputMeta
+from agent_audio_gateway.core.models import AnalysisResult, AnalyzeResponse, InputMeta
 
 
 def _fake_response(task: str = "summarize") -> AnalyzeResponse:
@@ -176,7 +176,40 @@ def test_serve_allows_non_loopback_with_allow_remote(monkeypatch) -> None:
     assert captured["kwargs"]["host"] == "0.0.0.0"
 
 
-def test_cli_unhandled_error_returns_internal_error_json(monkeypatch) -> None:
+def test_no_segment_flag_sets_option_to_false(monkeypatch) -> None:
+    """--no-segment must set options.segment to False."""
+    engine = _FakeEngine()
+    monkeypatch.setattr(main, "_make_engine", lambda _config_path: engine)
+
+    result = CliRunner().invoke(
+        main.cli,
+        ["analyze", "audio.wav", "--no-segment"],
+    )
+
+    assert result.exit_code == 0
+    assert engine.analyze_request is not None
+    assert engine.analyze_request.options.segment is False
+
+
+def test_allow_remote_emits_warning_to_stderr(monkeypatch) -> None:
+    """--allow-remote must print a security warning."""
+    captured = {}
+
+    def fake_run(*args, **kwargs):
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setitem(sys.modules, "uvicorn", types.SimpleNamespace(run=fake_run))
+
+    # Click's CliRunner mixes stdout and stderr into result.output by default
+    result = CliRunner().invoke(
+        main.cli,
+        ["serve", "--host", "0.0.0.0", "--allow-remote"],
+    )
+
+    assert result.exit_code == 0
+    assert "WARNING" in result.output
+    assert "no authentication" in result.output
+
     engine = _FakeEngine()
     monkeypatch.setattr(main, "_make_engine", lambda _config_path: engine)
 

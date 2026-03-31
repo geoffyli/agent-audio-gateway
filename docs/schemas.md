@@ -72,8 +72,7 @@ Returned by `analyze`, `ask`, `POST /analyze`, and `POST /ask`.
 - `input.chunk_count` — 1 if not segmented
 - `result.summary` — text output in standard mode; in structured mode, contains the raw model JSON text
 - `result.data` — parsed JSON object in structured mode; `null` in standard mode
-- `result.observations` — may be empty; depends on task and model output
-- `result.observations[].timestamp` — optional; present when the model infers timing
+- `result.observations` — **deprecated**: always empty; will be removed in a future version
 - `meta.schema` — caller schema metadata or schema object (`null` when not provided)
 - `meta.timing_ms` — stage timings in milliseconds for troubleshooting and tuning
 
@@ -116,13 +115,16 @@ Returned on failure. On the CLI, written to stdout. On the server, returned with
 | `NOT_A_FILE` | 3 | The path exists but is not a regular file |
 | `UNSUPPORTED_FORMAT` | 3 | The file extension is not supported |
 | `METADATA_READ_ERROR` | 3 | Could not extract audio metadata |
+| `PATH_NOT_PERMITTED` | 3 | Server mode: file path is outside the configured `server.permitted_audio_dir` |
 | `AUDIO_LOAD_ERROR` | 4 | Failed to load or decode the audio |
+| `AUDIO_INVALID_DATA` | 4 | Audio data contains NaN or infinite values after loading |
 | `INVALID_CHUNK_PARAMS` | 4 | Invalid chunk options (for example overlap >= chunk size) |
 | `AUDIO_ENCODE_ERROR` | 5 | Failed to encode upload audio payload |
 | `INFERENCE_ERROR` | 5 | Audio inference failed |
 | `SYNTHESIS_ERROR` | 5 | Text synthesis call failed |
 | `SYNTHESIS_FAILED` | 4 | Aggregation merge step failed |
 | `EMPTY_CHUNKS` | 4 | Aggregation received no chunk results |
+| `REQUEST_TIMEOUT` | 5 | Server-side request timeout (see `server.request_timeout_seconds`) |
 | `API_TIMEOUT` | 5 | Provider request timed out |
 | `API_NETWORK_ERROR` | 5 | Provider network request failed |
 | `API_HTTP_ERROR` | 5 | Provider request failed before a response body was parsed |

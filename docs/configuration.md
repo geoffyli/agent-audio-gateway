@@ -61,6 +61,8 @@ These are operator knobs for production tuning, not required user inputs.
 | `model.retry_backoff_seconds` | `0.75` | You need gentler or faster retry behavior |
 | `analysis.target_sample_rate_hz` | `16000` | You need to trade fidelity vs latency/payload size |
 | `analysis.max_parallel_chunks` | `2` | Long audio is slow (increase) or rate-limited (decrease) |
+| `server.permitted_audio_dir` | `null` (any) | Server mode: restrict file access to a specific directory |
+| `server.request_timeout_seconds` | `300.0` | Server mode: maximum time per request before timing out |
 
 ---
 
@@ -70,7 +72,7 @@ These are operator knobs for production tuning, not required user inputs.
 model:
   backend: openrouter
   id: google/gemini-3.1-flash-lite-preview
-  api_key: ""
+  api_key: ""  # STRONGLY prefer OPENROUTER_API_KEY env var (see Security notes below)
   base_url: https://openrouter.ai/api/v1
   max_tokens: 1024
   connect_timeout_seconds: 10.0
@@ -93,9 +95,9 @@ output:
 logging:
   level: info
 
-cache:
-  enabled: false
-  dir: ~/.agent-audio-gateway/cache
+# server:
+#   permitted_audio_dir: null   # restrict file access to this directory in server mode
+#   request_timeout_seconds: 300.0
 ```
 
 ---
@@ -116,6 +118,12 @@ These chunking controls apply to both standard mode and structured mode.
 
 ## Model notes
 
-- API key resolution order: `model.api_key` -> `OPENROUTER_API_KEY`.
+- **API key resolution order:** `OPENROUTER_API_KEY` env var is recommended. `model.api_key` in the config file also works, but will emit a deprecation warning — avoid committing credentials to version control.
 - Change `model.id` to any OpenRouter model that supports audio input.
 - Restart the server after changing model settings (`id`, `api_key`, timeouts, retries).
+
+---
+
+## Security notes
+
+See [`docs/security.md`](security.md) for guidance on API key management, server file-access restrictions, and network exposure.

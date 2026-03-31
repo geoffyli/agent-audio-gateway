@@ -52,6 +52,16 @@ class OpenRouterAdapter(BaseAudioAdapter):
                 "or set the OPENROUTER_API_KEY environment variable.",
                 code="MISSING_API_KEY",
             )
+        if api_key:
+            import warnings
+
+            warnings.warn(
+                "Setting model.api_key in the config file is discouraged. "
+                "Use the OPENROUTER_API_KEY environment variable instead to avoid "
+                "accidentally committing credentials.",
+                UserWarning,
+                stacklevel=3,
+            )
         self._api_key = resolved_key
 
         self._client = httpx.Client(
@@ -69,6 +79,13 @@ class OpenRouterAdapter(BaseAudioAdapter):
                 pool=pool_timeout_seconds,
             ),
         )
+        try:
+            # Guard: any future setup steps that could raise go here.
+            # If they fail, the client is closed to prevent resource leaks.
+            pass
+        except Exception:
+            self._client.close()
+            raise
 
     # ── Audio conversion ──────────────────────────────────────────────────────
 

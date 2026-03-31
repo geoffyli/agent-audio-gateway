@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 import json
+import logging
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -13,9 +13,9 @@ from .config import GatewayConfig
 from .exceptions import InputError, ModelError
 from .inspection.inspector import AudioInspector
 from .models import (
+    AnalysisResult,
     AnalyzeRequest,
     AnalyzeResponse,
-    AnalysisResult,
     AskRequest,
     HealthResponse,
     InputMeta,
@@ -36,12 +36,14 @@ TASK_PROMPTS: dict[str, str] = {
         "music, emotional tone, and any notable events or changes."
     ),
     "classify": (
-        "Classify this audio. Identify the primary content type (e.g. speech, music, ambient noise, "
-        "interview, lecture, conversation) and list its key attributes."
+        "Classify this audio. Identify the primary content type "
+        "(e.g. speech, music, ambient noise, interview, lecture, conversation) "
+        "and list its key attributes."
     ),
     "extract-observations": (
-        "Extract important observations from this audio. For each significant event, speaker turn, "
-        "topic, or sound, note what it is and when it occurs (with approximate timestamps if possible)."
+        "Extract important observations from this audio. For each significant event, "
+        "speaker turn, topic, or sound, note what it is and when it occurs "
+        "(with approximate timestamps if possible)."
     ),
     "qa": (
         "Answer the following question about the audio faithfully based only on what you hear."
@@ -52,7 +54,12 @@ TASK_PROMPTS: dict[str, str] = {
 class GatewayEngine:
     def __init__(self, config: GatewayConfig):
         self.config = config
-        self._inspector = AudioInspector()
+        permitted = (
+            Path(config.server.permitted_audio_dir)
+            if config.server.permitted_audio_dir
+            else None
+        )
+        self._inspector = AudioInspector(permitted_base=permitted)
         self._preprocessor = AudioPreprocessor()
         self._segmenter = AudioSegmenter()
         self._adapter: OpenRouterAdapter | None = None
@@ -112,12 +119,15 @@ class GatewayEngine:
             max_workers = min(self.config.analysis.max_parallel_chunks, len(chunks))
             if max_workers <= 1:
                 chunk_results = [
-                    adapter.analyze(chunk.audio, sr, prompt) for chunk in chunks
+                    adapter.analyze(chunk.audio, sr, prompt, schema=structured_schema)
+                    for chunk in chunks
                 ]
             else:
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     indexed_futures = {
-                        executor.submit(self._analyze_chunk, chunk, sr, prompt): i
+                        executor.submit(
+                            self._analyze_chunk, chunk, sr, prompt, structured_schema
+                        ): i
                         for i, chunk in enumerate(chunks)
                     }
                     chunk_results = [""] * len(chunks)
@@ -126,8 +136,16 @@ class GatewayEngine:
                             chunk_index = indexed_futures[future]
                             chunk_results[chunk_index] = future.result()
                     except Exception:
-                        for future in indexed_futures:
-                            future.cancel()
+                        # Cancel futures that have not yet started. Futures already
+                        # executing a blocking httpx call cannot be interrupted; those
+                        # API calls will run to completion but results will be discarded.
+                        cancelled = sum(1 for f in indexed_futures if f.cancel())
+                        logger.warning(
+                            "Chunk analysis failed; cancelled %d pending future(s); "
+                            "%d may still be running in background.",
+                            cancelled,
+                            len(indexed_futures) - cancelled,
+                        )
                         raise
             inference_elapsed = (time.perf_counter() - inference_start) * 1000
 
@@ -248,8 +266,14 @@ class GatewayEngine:
                 code="PROMPT_FILE_READ_ERROR",
             ) from e
 
-    def _analyze_chunk(self, chunk: AudioChunk, sr: int, prompt: str) -> str:
-        return self._ensure_adapter().analyze(chunk.audio, sr, prompt)
+    def _analyze_chunk(
+        self,
+        chunk: AudioChunk,
+        sr: int,
+        prompt: str,
+        schema: dict | None = None,
+    ) -> str:
+        return self._ensure_adapter().analyze(chunk.audio, sr, prompt, schema=schema)
 
     def _ensure_adapter(self) -> OpenRouterAdapter:
         if self._adapter is not None:

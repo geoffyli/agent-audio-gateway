@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,15 +33,15 @@ class AnalyzeRequest(BaseModel):
 
     file_path: str
     task: TaskName = TaskName.summarize
-    instruction: Optional[str] = None
-    prompt_file: Optional[str] = None
-    output_schema: Optional[dict[str, Any] | str] = Field(None, alias="schema")
+    instruction: str | None = Field(None, max_length=8192)
+    prompt_file: str | None = None
+    output_schema: dict[str, Any] | str | None = Field(None, alias="schema")
     options: AnalysisOptions = Field(default_factory=AnalysisOptions)
 
 
 class AskRequest(BaseModel):
     file_path: str
-    question: str
+    question: str = Field(..., max_length=8192)
     options: AnalysisOptions = Field(default_factory=AnalysisOptions)
 
 
@@ -62,16 +62,19 @@ class FileInfo(BaseModel):
 
 
 class Observation(BaseModel):
-    timestamp: Optional[str] = None
-    type: Optional[str] = None
+    timestamp: str | None = None
+    type: str | None = None
     note: str
 
 
 class AnalysisResult(BaseModel):
     task: str
     summary: str
-    data: Optional[dict[str, Any]] = None
-    observations: list[Observation] = Field(default_factory=list)
+    data: dict[str, Any] | None = None
+    observations: list[Observation] = Field(
+        default_factory=list,
+        deprecated="This field is always empty and will be removed in a future version.",
+    )
 
 
 class InputMeta(BaseModel):

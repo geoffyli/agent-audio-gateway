@@ -12,8 +12,26 @@ SUPPORTED_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".opus"
 
 
 class AudioInspector:
+    def __init__(self, permitted_base: Path | None = None) -> None:
+        """
+        Args:
+            permitted_base: When set, file paths must resolve to within this
+                directory. Paths outside it raise InputError with PATH_NOT_PERMITTED.
+                Pass None (default) to allow any path (CLI mode).
+        """
+        self._permitted_base = permitted_base
+
     def inspect(self, file_path: str) -> FileInfo:
         path = Path(file_path)
+
+        if self._permitted_base is not None:
+            try:
+                path.resolve().relative_to(self._permitted_base.resolve())
+            except ValueError:
+                raise InputError(
+                    f"Access to path '{file_path}' is not permitted.",
+                    code="PATH_NOT_PERMITTED",
+                ) from None
 
         if not path.exists():
             raise InputError(
@@ -41,7 +59,7 @@ class AudioInspector:
             raise InputError(
                 f"Could not read audio file metadata: {e}",
                 code="METADATA_READ_ERROR",
-            )
+            ) from e
 
         logger.debug(
             "Inspected %s: duration=%.2fs channels=%d sr=%d",

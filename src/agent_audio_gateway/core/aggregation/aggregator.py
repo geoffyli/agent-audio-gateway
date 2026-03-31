@@ -27,6 +27,10 @@ class ChunkAggregator:
         if not chunk_results:
             raise AggregationError("No chunk results to aggregate", code="EMPTY_CHUNKS")
 
+        chunk_results = [r for r in chunk_results if r and r.strip()]
+        if not chunk_results:
+            raise AggregationError("All chunk results were empty", code="EMPTY_CHUNKS")
+
         if len(chunk_results) == 1:
             return chunk_results[0]
 
