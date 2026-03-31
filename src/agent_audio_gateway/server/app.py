@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from agent_audio_gateway import __version__
+from agent_audio_gateway.core._logging import setup_logging
 from agent_audio_gateway.core.config import GatewayConfig
 from agent_audio_gateway.core.engine import GatewayEngine
 from agent_audio_gateway.core.exceptions import (
@@ -57,20 +58,6 @@ def _close_engine() -> None:
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
 
-def _configure_logging(level: str) -> None:
-    """Configure root logger for server mode, mirroring CLI logging setup."""
-    import sys
-
-    numeric = getattr(logging, level.upper(), logging.INFO)
-    logging.basicConfig(
-        stream=sys.stderr,
-        level=numeric,
-        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-        datefmt="%H:%M:%S",
-        force=True,
-    )
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -79,7 +66,7 @@ async def lifespan(app: FastAPI):
         logger.error("Startup failed: [%s] %s", e.code, e.message)
         raise
     if hasattr(engine, "config"):
-        _configure_logging(engine.config.logging.level)
+        setup_logging(engine.config.logging.level, force=True)
     logger.info("agent-audio-gateway server starting (v%s)", __version__)
     yield
     _close_engine()

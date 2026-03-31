@@ -19,14 +19,16 @@ class AudioInspector:
                 directory. Paths outside it raise InputError with PATH_NOT_PERMITTED.
                 Pass None (default) to allow any path (CLI mode).
         """
-        self._permitted_base = permitted_base
+        self._permitted_base_resolved = (
+            permitted_base.resolve() if permitted_base is not None else None
+        )
 
     def inspect(self, file_path: str) -> FileInfo:
         path = Path(file_path)
 
-        if self._permitted_base is not None:
+        if self._permitted_base_resolved is not None:
             try:
-                path.resolve().relative_to(self._permitted_base.resolve())
+                path.resolve().relative_to(self._permitted_base_resolved)
             except ValueError:
                 raise InputError(
                     f"Access to path '{file_path}' is not permitted.",

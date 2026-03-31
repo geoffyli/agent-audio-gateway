@@ -79,13 +79,6 @@ class OpenRouterAdapter(BaseAudioAdapter):
                 pool=pool_timeout_seconds,
             ),
         )
-        try:
-            # Guard: any future setup steps that could raise go here.
-            # If they fail, the client is closed to prevent resource leaks.
-            pass
-        except Exception:
-            self._client.close()
-            raise
 
     # ── Audio conversion ──────────────────────────────────────────────────────
 

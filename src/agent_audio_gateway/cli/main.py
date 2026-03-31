@@ -10,6 +10,7 @@ from typing import Any
 import click
 
 from agent_audio_gateway import __version__
+from agent_audio_gateway.core._logging import setup_logging
 from agent_audio_gateway.core.config import GatewayConfig
 from agent_audio_gateway.core.engine import GatewayEngine
 from agent_audio_gateway.core.exceptions import GatewayError, InputError
@@ -19,13 +20,7 @@ from agent_audio_gateway.core.models import AnalysisOptions, AnalyzeRequest, Ask
 
 
 def _setup_logging(level: str) -> None:
-    numeric = getattr(logging, level.upper(), logging.INFO)
-    logging.basicConfig(
-        stream=sys.stderr,
-        level=numeric,
-        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    setup_logging(level)
 
 
 def _emit(data: dict, pretty: bool) -> None:
